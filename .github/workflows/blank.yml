@@ -1,36 +1,134 @@
-# This is a basic workflow to help you get started with Actions
+name: Bootstrap Issues, Labels, Milestones
 
-name: CI
-
-# Controls when the workflow will run
 on:
-  # Triggers the workflow on push or pull request events but only for the "main" branch
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
-
-  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
-jobs:
-  # This workflow contains a single job called "build"
-  build:
-    # The type of runner that the job will run on
-    runs-on: ubuntu-latest
+permissions:
+  contents: read
+  issues: write
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v4
 
-      # Runs a single command using the runners shell
-      - name: Run a one-line script
-        run: echo Hello, world!
+      - name: Create/Update Milestones
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const core = require('@actions/core');
+            const { owner, repo } = context.repo;
+            const path = 'project-management/milestones.json';
+            if (!fs.existsSync(path)) {
+              core.warning('No milestones.json found, skipping milestones.');
+            } else {
+              const data = JSON.parse(fs.readFileSync(path, 'utf8'));
+              const existing = await github.paginate(github.rest.issues.listMilestones, { owner, repo, state: 'open', per_page: 100 });
+              const map = new Map(existing.map(m => [m.title, m.number]));
+              for (const m of data) {
+                const due_on = new Date(m.due_on).toISOString();
+                if (map.has(m.title)) {
+                  const number = map.get(m.title);
+                  await github.rest.issues.updateMilestone({ owner, repo, milestone_number: number, title: m.title, due_on });
+                  core.info(`Updated milestone: ${m.title}`);
+                } else {
+                  await github.rest.issues.createMilestone({ owner, repo, title: m.title, due_on });
+                  core.info(`Created milestone: ${m.title}`);
+                }
+              }
+            }
 
-      # Runs a set of commands using the runners shell
-      - name: Run a multi-line script
-        run: |
-          echo Add other actions to build,
-          echo test, and deploy your project.
+      - name: Create/Update Labels
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const core = require('@actions/core');
+            const { owner, repo } = context.repo;
+            const path = 'project-management/labels.json';
+            if (!fs.existsSync(path)) {
+              core.warning('No labels.json found, skipping labels.');
+            } else {
+              const data = JSON.parse(fs.readFileSync(path, 'utf8'));
+              const existing = await github.paginate(github.rest.issues.listLabelsForRepo, { owner, repo, per_page: 100 });
+              const map = new Map(existing.map(l => [l.name, l]));
+              for (const l of data) {
+                const name = l.name;
+                const color = (l.color || '777777').replace('#','');
+                if (map.has(name)) {
+                  await github.rest.issues.updateLabel({ owner, repo, name, new_name: name, color });
+                  core.info(`Updated label: ${name}`);
+                } else {
+                  await github.rest.issues.createLabel({ owner, repo, name, color });
+                  core.info(`Created label: ${name}`);
+                }
+              }
+            }
+
+      - name: Create Issues from CSV
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const core = require('@actions/core');
+            const { owner, repo } = context.repo;
+            const path = 'project-management/issues.csv';
+            if (!fs.existsSync(path)) {
+              core.warning('No issues.csv found, skipping issues.');
+              return;
+            }
+
+            // Load milestones for title->number map
+            const milestones = await github.paginate(github.rest.issues.listMilestones, { owner, repo, state: 'open', per_page: 100 });
+            const msMap = new Map(milestones.map(m => [m.title, m.number]));
+
+            function parseCSV(content) {
+              const rows = [];
+              let i = 0, field = '', row = [], inQuotes = false;
+              while (i < content.length) {
+                const c = content[i];
+                if (inQuotes) {
+                  if (c === '"') {
+                    if (content[i+1] === '"') { field += '"'; i++; }
+                    else { inQuotes = false; }
+                  } else { field += c; }
+                } else {
+                  if (c === '"') { inQuotes = true; }
+                  else if (c === ',') { row.push(field); field=''; }
+                  else if (c === '\n' || c === '\r') {
+                    if (field.length || row.length) { row.push(field); rows.push(row); }
+                    field=''; row=[];
+                    // consume \r\n as a pair
+                    if (c === '\r' && content[i+1] === '\n') i++;
+                  } else { field += c; }
+                }
+                i++;
+              }
+              if (field.length || row.length) { row.push(field); rows.push(row); }
+              return rows;
+            }
+
+            const content = fs.readFileSync(path, 'utf8');
+            const rows = parseCSV(content).filter(r => r.length && r[0] !== 'Title');
+
+            for (const r of rows) {
+              const [Title, Body, Labels, Milestone] = r;
+              const title = Title.trim();
+              const body = Body.trim();
+              const labels = (Labels || '').split('|').map(s => s.trim()).filter(Boolean);
+              const msNumber = Milestone && msMap.has(Milestone) ? msMap.get(Milestone) : undefined;
+
+              // Check existing by exact title (open or closed)
+              const q = `repo:${owner}/${repo} in:title "${title.replace(/\"/g,'\\\"')}" type:issue`;
+              const search = await github.rest.search.issuesAndPullRequests({ q, per_page: 1 });
+              if (search.data.total_count > 0 && search.data.items[0].title === title) {
+                core.info(`Issue exists, skipping: ${title}`);
+                continue;
+              }
+
+              await github.rest.issues.create({ owner, repo, title, body, labels, milestone: msNumber });
+              core.info(`Created issue: ${title}`);
+            }
+
