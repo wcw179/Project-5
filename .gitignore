@@ -1,0 +1,11 @@
+# Local development files
+*.pyc
+__pycache__/
+.env
+
+# Large data files
+data/
+
+# Local scripts
+bootstrap_local.py
+
