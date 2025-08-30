@@ -1,0 +1,19 @@
+# Main configuration for the Black Swan Trading Bot
+
+project_name: "BlackSwanHunter"
+version: "0.1.0"
+
+broker:
+  api_key: "YOUR_API_KEY"
+  api_secret: "YOUR_API_SECRET"
+  dry_run: true
+
+data:
+  symbols: ["EURUSDm", "GBPUSDm", "USDJPYm", "XAUUSDm"]
+  rolling_window_hours: 200
+
+logging:
+  level: "INFO"
+  format: "json"
+  rotation: "10 MB"
+  retention: "10 days"
