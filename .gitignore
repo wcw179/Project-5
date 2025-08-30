@@ -1,10 +1,51 @@
-# Local development files
-*.pyc
+# Byte-compiled / optimized / DLL files
 __pycache__/
-.env
+*.py[cod]
+*$py.class
 
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# VSCode
+.vscode/
+
+# Custom Ignores
+# -------------
 # Large data files
 data/
+
+# Log files
+logs/
 
 # Local scripts
 bootstrap_local.py

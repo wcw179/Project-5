@@ -1,0 +1,30 @@
+gantt
+    dateFormat  YYYY-MM-DD
+    title Black Swan Bot - 8-week Plan (start 2025-09-01)
+
+    section Phase 0: Architecture & Compliance
+    ADR & Compliance Matrix                 :milestone, p0, 2025-09-01, 2d
+
+    section Phase 1: Foundation (Weeks 1-2)
+    Repo, Config, Logging, Data, Features, Backtest :p1, after p0, 12d
+
+    section Phase 1A–1D: Parallel Training Pipelines (Weeks 1-2)
+    EURUSDm CV+Labels+XGB+Optuna+SHAP+Artifacts     :p1a, after p0, 12d
+    XAUUSDm CV+Labels+XGB+Optuna+SHAP+Artifacts     :p1b, after p0, 12d
+    GBPUSDm CV+Labels+XGB+Optuna+SHAP+Artifacts     :p1c, after p0, 12d
+    USDJPYm CV+Labels+XGB+Optuna+SHAP+Artifacts     :p1d, after p0, 12d
+
+    section Phase 2: ML Core (Weeks 3-4)
+    Prod Training + Ensemble + Validation Framework :p2, 2025-09-15, 14d
+
+    section Phase 3: Trading Engine (Weeks 5-6)
+    Signals + Kelly Sizing + Portfolio Risk + Execution + Monitoring :p3, after p2, 14d
+
+    section Phase 4: Testing & Deployment (Weeks 7-8)
+    Paper Trading + Stress Tests + KPI Validation + Deploy + Dashboard + Docs :p4, after p3, 14d
+
+    section Milestones
+    Foundation & Pipelines Complete (Wk 2)          :milestone, m1, 2025-09-14, 1d
+    ML Core Complete (Wk 4)                         :milestone, m2, 2025-09-28, 1d
+    Trading Engine Complete (Wk 6)                  :milestone, m3, 2025-10-12, 1d
+    Ready for Production (Wk 8)                     :milestone, m4, 2025-10-26, 1d
