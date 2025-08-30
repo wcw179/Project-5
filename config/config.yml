@@ -4,8 +4,7 @@ project_name: "BlackSwanHunter"
 version: "0.1.0"
 
 broker:
-  api_key: "YOUR_API_KEY"
-  api_secret: "YOUR_API_SECRET"
+  account_name: "mt5_main"  # The account name used in keyring
   dry_run: true
 
 data:
