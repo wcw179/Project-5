@@ -3,6 +3,8 @@
 import pandas as pd
 import pandas_ta as ta
 
+from src.logger import logger
+
 
 def add_trend_features(df: pd.DataFrame) -> pd.DataFrame:
     """Adds trend and momentum features, including multi-timeframe alignment."""
@@ -46,11 +48,27 @@ def add_trend_features(df: pd.DataFrame) -> pd.DataFrame:
         (df["ema20_h4"] < df["ema50_h4"])
     ).astype(int)
 
+    # --- Advanced Trend & Momentum Features ---
+    # EMA Slope Acceleration (2nd derivative of a short-term EMA)
+    ema_slope = df["ema_20"].diff()
+    df["ema_slope_acceleration"] = ema_slope.diff().rolling(window=10).mean()
+
+    # Trend Strength Index (using ADX)
+    adx = ta.adx(df["high"], df["low"], df["close"], length=14)
+    df["trend_strength_index"] = adx["ADX_14"]
+
+    # Momentum Regime (using RSI slope)
+    rsi = ta.rsi(df["close"], length=14)
+    rsi_slope = rsi.diff().rolling(window=10).mean()
+    df["momentum_regime"] = 0
+    df.loc[rsi_slope > 0.5, "momentum_regime"] = 1  # Strong positive momentum
+    df.loc[rsi_slope < -0.5, "momentum_regime"] = -1  # Strong negative momentum
+
     # --- Placeholder Features ---
-    df["ema_slope_acceleration"] = 0.0  # STUB: 2nd derivative of a short-term EMA
-    df["trend_strength_index"] = 0.0  # STUB: Composite of ADX, etc.
+    logger.warning(
+        "MACD and RSI divergence features are not yet implemented. Using neutral placeholders."
+    )
     df["macd_divergence"] = 0  # STUB: -1 for bearish, 1 for bullish, 0 for none
     df["rsi_divergence"] = 0  # STUB: -1 for bearish, 1 for bullish, 0 for none
-    df["momentum_regime"] = 0  # STUB: -1 for weak, 0 for neutral, 1 for strong
 
     return df

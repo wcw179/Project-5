@@ -3,6 +3,8 @@
 import pandas as pd
 import pandas_ta as ta
 
+from src.logger import logger
+
 
 def add_microstructure_features(df: pd.DataFrame) -> pd.DataFrame:
     """Adds microstructure features related to liquidity and order flow."""
@@ -24,6 +26,10 @@ def add_microstructure_features(df: pd.DataFrame) -> pd.DataFrame:
     df["obv_slope"] = obv.diff().rolling(window=10).mean()
 
     # --- Placeholder Features ---
+    # These features require tick-level data, which is not available in the current dataset.
+    logger.warning(
+        "Tick volume and order flow features are not implemented due to data limitations. Using neutral placeholders."
+    )
     df["tick_volume_ratio"] = 1.0  # STUB: Ratio of tick volume to real volume
     df["order_flow_imbalance"] = 0.0  # STUB: Net buy vs. sell pressure
 

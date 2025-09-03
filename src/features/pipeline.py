@@ -2,7 +2,9 @@
 
 import pandas as pd
 
+from src.features.fractal.dimension import add_fractal_features
 from src.features.microstructure.liquidity import add_microstructure_features
+from src.features.regime.volatility_regime import add_volatility_regime
 from src.features.sentiment.indicators import add_sentiment_features
 from src.features.temporal.sessions import add_session_features
 from src.features.trend.alignment import add_trend_features
@@ -47,12 +49,24 @@ def create_all_features(df: pd.DataFrame, symbol: str) -> pd.DataFrame:
     df_featured = add_sentiment_features(df_featured)
     logger.debug(f"({symbol}) ...Sentiment features OK.")
 
+    logger.debug(f"({symbol}) Adding fractal features...")
+    df_featured = add_fractal_features(df_featured)
+    logger.debug(f"({symbol}) ...Fractal features OK.")
+
+    logger.debug(f"({symbol}) Adding regime features...")
+    df_featured = add_volatility_regime(df_featured)
+    logger.debug(f"({symbol}) ...Regime features OK.")
+
     # Drop rows with NaN values created by rolling indicators
     initial_rows = len(df_featured)
     logger.debug(f"({symbol}) Dropping NaN values...")
     df_featured.dropna(inplace=True)
     final_rows = len(df_featured)
     logger.info(f"({symbol}) Dropped {initial_rows - final_rows} rows with NaN values.")
+
+    # Drop the symbol column if it exists, as it's not a feature
+    if "symbol" in df_featured.columns:
+        df_featured = df_featured.drop(columns=["symbol"])
 
     logger.success(
         f"Feature engineering pipeline completed for {symbol}. Shape: {df_featured.shape}"

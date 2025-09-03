@@ -44,31 +44,34 @@ class PurgedKFold(KFold):
 
         for i, (train_idx, test_idx) in enumerate(super_split):
             logger.debug(f"Processing fold {i+1}/{self.n_splits}...")
+            train_times = sample_info.iloc[train_idx]
+            test_times = sample_info.iloc[test_idx]
 
-            # Get the start and end times for the test set
-            test_start_time = sample_info.iloc[test_idx].start_time.min()
-            test_end_time = sample_info.iloc[test_idx].end_time.max()
+            # Determine the full time span of the test set
+            test_start = test_times.index.min()
+            test_end = test_times["t1"].max()
 
-            # --- Purging Logic ---
-            # Purge training samples that overlap with the test set
-            train_sample_info = sample_info.iloc[train_idx]
+            # Identify training samples contaminated by the test set
+            # 1. Purge: Training samples whose labels overlap with the test period
+            train_starts = train_times.index
+            train_ends = train_times["t1"]
 
-            # Samples starting before the test set ends
-            purge_mask_1 = train_sample_info.start_time <= test_end_time
-            # Samples ending after the test set starts
-            purge_mask_2 = train_sample_info.end_time >= test_start_time
+            # Overlap conditions
+            overlap_c1 = (train_starts >= test_start) & (train_starts <= test_end)
+            overlap_c2 = (train_ends >= test_start) & (train_ends <= test_end)
+            overlap_c3 = (train_starts <= test_start) & (train_ends >= test_end)
+            purged_mask = overlap_c1 | overlap_c2 | overlap_c3
 
-            # Combine masks to find overlapping samples
-            overlapping_mask = purge_mask_1 & purge_mask_2
-            purged_train_idx = train_idx[~overlapping_mask]
+            # 2. Embargo: Training samples immediately following the test period
+            embargo_end = test_end + self.embargo_td
+            embargo_mask = (train_starts > test_end) & (train_starts < embargo_end)
 
-            # --- Embargo Logic ---
-            # Apply an embargo period after the test set
-            embargo_start_time = test_end_time + self.embargo_td
-            embargo_mask = (
-                sample_info.iloc[purged_train_idx].start_time < embargo_start_time
-            )
-            final_train_idx = purged_train_idx[~embargo_mask]
+            # Combine masks to get all contaminated indices
+            contaminated_mask = purged_mask | embargo_mask
+            final_train_indices = train_times[~contaminated_mask].index
+
+            # Convert final time indices back to integer positions
+            final_train_idx = X.index.get_indexer(final_train_indices)
 
             logger.debug(
                 f"Fold {i+1}: Original train size: {len(train_idx)}, Purged size: {len(final_train_idx)}"

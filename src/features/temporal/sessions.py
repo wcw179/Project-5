@@ -24,9 +24,20 @@ def add_session_features(df: pd.DataFrame) -> pd.DataFrame:
         (df["is_london_session"] == 1) & (df["is_ny_session"] == 1)
     ).astype(int)
 
-    # --- Placeholder Features ---
-    # These require more complex logic or external data.
-    df["session_transition"] = 0  # STUB: 1 if within 1h of a session change
-    df["news_release_proximity"] = 1.0  # STUB: Normalized time to next major news event
+    # --- Advanced Temporal Features ---
+    # Detects periods within 1 hour of a major session open/close
+    transition_hours = [
+        0,
+        7,
+        9,
+        12,
+        16,
+        21,
+    ]  # Asian open, London open, Asian close, NY open, London close, NY close
+    df["session_transition"] = df.index.hour.isin(transition_hours).astype(int)
+
+    # STUB: This feature requires an external news calendar data source.
+    # For now, it's a placeholder that won't affect the model.
+    df["news_release_proximity"] = 1.0
 
     return df

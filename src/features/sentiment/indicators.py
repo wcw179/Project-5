@@ -2,11 +2,16 @@
 
 import pandas as pd
 
+from src.logger import logger
+
 
 def add_sentiment_features(df: pd.DataFrame) -> pd.DataFrame:
     """Adds sentiment and market positioning features (STUBS)."""
 
     # --- Placeholder Features ---
+    logger.warning(
+        "Sentiment features require external data and are not implemented. Using neutral placeholders."
+    )
     # These features require external data sources and are stubbed for now.
     df["vix_regime"] = 0  # STUB: -1 for low, 0 for normal, 1 for high VIX
     df["put_call_ratio"] = 0.0  # STUB: CBOE put/call ratio
