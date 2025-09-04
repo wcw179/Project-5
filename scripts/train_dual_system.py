@@ -27,10 +27,14 @@ from sqlalchemy import create_engine
 project_root = Path(__file__).resolve().parent.parent
 sys.path.append(str(project_root))
 
+import json
+import xgboost as xgb
 from src.features.pipeline import create_all_features
-from src.model_validation.purged_k_fold import PurgedKFold
-from src.modeling.models import get_fast_model, get_deep_model, get_balanced_model
-from src.labeling.triple_barrier_afml import TripleBarrierConfig, generate_primary_labels, compute_sample_weights
+from src.labeling.triple_barrier_afml import (
+    TripleBarrierConfig,
+    generate_primary_labels,
+    compute_sample_weights,
+)
 from src.labeling.meta_labeling import extract_meta_features, generate_meta_labels
 from src.modeling.meta_models import get_meta_models
 from src.logger import logger
@@ -41,7 +45,6 @@ SYMBOL = "EURUSDm"
 START_DATE = "2023-01-01"
 END_DATE = "2025-08-31"
 HOLD_PERIOD_BARS = [12, 48, 144, 288]  # 1h, 4h, 12h, 24h
-ENSEMBLE_WEIGHTS = {"fast": 0.3, "deep": 0.3, "balanced": 0.4}
 
 
 def load_bars(symbol: str, start: str, end: str) -> pd.DataFrame:
@@ -53,58 +56,51 @@ def load_bars(symbol: str, start: str, end: str) -> pd.DataFrame:
     return df
 
 
-def fit_primary_models(X: pd.DataFrame, y: pd.DataFrame, sample_info: pd.DataFrame) -> Dict[str, object]:
-    models = {
-        "fast": get_fast_model(),
-        "deep": get_deep_model(),
-        "balanced": get_balanced_model(),
-    }
-    # Purged K-Fold
-    pkf = PurgedKFold(n_splits=5, embargo_td=pd.Timedelta(hours=24))
-    splits = list(pkf.split(X, sample_info=sample_info))
-
-    # Simple CV loop (fit on full at the end for deployment)
-    for name, model in models.items():
-        logger.info(f"Training primary model '{name}' on full data (CV evaluated separately)...")
-        # Optional: evaluate with CV and log scores per label
-        # Here we directly fit on full matrix for brevity
-        # Multi-label: fit per column sequentially and store as dict of models
-        label_models = {}
-        for col in y.columns:
-            if y[col].nunique() < 2:
-                continue
-            m = model.__class__(**model.get_xgb_params()) if hasattr(model, 'get_xgb_params') else model.__class__(**model.get_params())
-            m.set_params(**{k: v for k, v in model.get_params().items() if k in m.get_params()})
-            m.fit(X, y[col])
-            label_models[col] = m
-        models[name] = label_models
-    return models
-
-
-def ensemble_proba(models: Dict[str, Dict[str, object]], X: pd.DataFrame) -> pd.DataFrame:
-    # compute weighted average proba across primary models for each label
-    labels = sorted({lab for label_models in models.values() for lab in label_models.keys()})
-    out = pd.DataFrame(0.0, index=X.index, columns=labels)
-    for mname, label_models in models.items():
-        w = ENSEMBLE_WEIGHTS.get(mname, 0.0)
-        if w == 0:
+def fit_primary_model(
+    X: pd.DataFrame, y: pd.DataFrame, params: dict
+) -> Dict[str, xgb.XGBClassifier]:
+    """Trains one XGBoost classifier per label using the best hyperparameters."""
+    logger.info("Training optimized primary model on full data...")
+    trained_models = {}
+    for col in y.columns:
+        if y[col].nunique() < 2:
+            logger.warning(f"Skipping label '{col}' as it has only one class.")
             continue
-        for lab, mdl in label_models.items():
-            if hasattr(mdl, "predict_proba"):
-                p = mdl.predict_proba(X)
-                proba = p[:, 1] if p.ndim == 2 and p.shape[1] > 1 else p.ravel()
-                out[lab] += w * proba
-    return out
+
+        model = xgb.XGBClassifier(**params)
+        model.fit(X, y[col])
+        trained_models[col] = model
+
+    logger.success("Primary model training complete.")
+    return trained_models
+
+
+def predict_primary_proba(
+    models: Dict[str, xgb.XGBClassifier], X: pd.DataFrame
+) -> pd.DataFrame:
+    """Generates prediction probabilities from the trained primary models."""
+    probas = {}
+    for label, model in models.items():
+        if hasattr(model, "predict_proba"):
+            p = model.predict_proba(X)
+            # Ensure we get the probability of the positive class (1)
+            proba_col = p[:, 1] if p.ndim == 2 and p.shape[1] > 1 else p.ravel()
+            probas[label] = proba_col
+
+    return pd.DataFrame(probas, index=X.index)
 
 
 def main():
+    logger.info("--- Starting Dual-Model Training Pipeline ---")
+
+    # 1. Load Data and Features
     logger.info("Loading EURUSDm bars...")
     bars = load_bars(SYMBOL, START_DATE, END_DATE)
-
     logger.info("Feature engineering...")
     X = create_all_features(bars, SYMBOL)
 
-    logger.info("Generating AFML triple-barrier primary labels...")
+    # 2. Generate Primary Labels (AFML Triple-Barrier)
+    logger.info("Generating AFML triple-barrier primary labels (long & short)...")
     tb_cfg = TripleBarrierConfig(
         horizons=HOLD_PERIOD_BARS,
         rr_multiples=[5.0, 10.0, 15.0, 20.0],
@@ -112,56 +108,59 @@ def main():
         atr_period=100,
         vol_window=288,
         atr_mult_base=2.0,
-        include_short=False,
+        include_short=True,  # Generate both long and short labels
         spread_pips=2.0,
     )
     y, sample_info = generate_primary_labels(bars, SYMBOL, tb_cfg)
 
-    # Align
+    # Align dataframes
     idx = X.index.intersection(y.index)
-    X = X.loc[idx]
-    y = y.loc[idx]
-    sample_info = sample_info.loc[idx]
+    X, y, sample_info = X.loc[idx], y.loc[idx], sample_info.loc[idx]
 
-    logger.info("Computing sample weights (placeholder uniform)...")
-    sample_weights = compute_sample_weights(sample_info)
+    # 3. Load Best Hyperparameters
+    params_path = MODEL_DIR / f"{SYMBOL}_best_primary_params.json"
+    if not params_path.exists():
+        logger.error(f"Hyperparameter file not found at {params_path}")
+        logger.error("Please run 'scripts/run_optimization.py' first.")
+        return
+    logger.info(f"Loading best hyperparameters from {params_path}")
+    with open(params_path, "r") as f:
+        best_params = json.load(f)
 
-    logger.info("Training primary models (Fast/Deep/Balanced)...")
-    primary_models = fit_primary_models(X, y, sample_info)
+    # 4. Train Primary Model
+    primary_model = fit_primary_model(X, y, best_params)
 
-    logger.info("Ensembling primary probabilities...")
-    primary_proba = ensemble_proba(primary_models, X)
+    # 5. Get Primary Probabilities
+    logger.info("Generating primary model probabilities...")
+    primary_proba = predict_primary_proba(primary_model, X)
 
+    # 6. Train Meta-Models
     logger.info("Building meta-features & generating bootstrap meta-labels...")
-    # Attempt to include a volatility regime column if present
     market_cols = [c for c in X.columns if "volatility_regime" in c][:1]
-    meta_X = extract_meta_features(X, primary_proba, market_cols=market_cols, hist_cols=None)
+    meta_X = extract_meta_features(X, primary_proba, market_cols=market_cols)
     meta_y = generate_meta_labels(X, primary_proba, market_cols=market_cols)
 
     logger.info("Training meta-models...")
     meta_models = get_meta_models()
-    trained_meta = {}
-    for name, mdl in meta_models.items():
+    trained_meta_models = {}
+    for name, model in meta_models.items():
         target = meta_y[name]
-        mdl.fit(meta_X, target)
-        trained_meta[name] = mdl
+        model.fit(meta_X, target)
+        trained_meta_models[name] = model
 
-    # Save artifacts
+    # 7. Save Artifacts
     MODEL_DIR.mkdir(exist_ok=True)
     ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-    primary_path = MODEL_DIR / f"{SYMBOL}_primary_models_{ts}.joblib"
+    primary_path = MODEL_DIR / f"{SYMBOL}_primary_model_{ts}.joblib"
     meta_path = MODEL_DIR / f"{SYMBOL}_meta_models_{ts}.joblib"
-    proba_path = MODEL_DIR / f"{SYMBOL}_primary_proba_{ts}.parquet"
 
-    joblib.dump(primary_models, primary_path)
-    joblib.dump(trained_meta, meta_path)
-    primary_proba.to_parquet(proba_path)
+    joblib.dump(primary_model, primary_path)
+    joblib.dump(trained_meta_models, meta_path)
 
-    logger.success(f"Saved primary models to {primary_path}")
-    logger.success(f"Saved meta models to {meta_path}")
-    logger.success(f"Saved primary proba to {proba_path}")
+    logger.success(f"Saved PRIMARY model to {primary_path}")
+    logger.success(f"Saved META models to {meta_path}")
+    logger.info("--- Dual-Model Training Pipeline Finished ---")
 
 
 if __name__ == "__main__":
     main()
-
