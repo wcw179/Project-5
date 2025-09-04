@@ -113,15 +113,16 @@ def financial_objective_function(
     )  # Risk 1-10% of equity
 
     # Aggregate multi-label predictions
-    long_cols = [col for col in y_pred_proba.columns if "long" in col]
-    short_cols = [col for col in y_pred_proba.columns if "short" in col]
+    # Support both legacy ('long_*'/'short_*') and AFML triple-barrier ('hit_*') labels
+    long_cols = [c for c in y_pred_proba.columns if ("long" in c) or c.startswith("hit_")]
+    short_cols = [c for c in y_pred_proba.columns if "short" in c]
 
     agg_predictions = pd.DataFrame(index=y_pred_proba.index)
     agg_predictions["long_label"] = (
-        y_pred_proba[long_cols].max(axis=1) if long_cols else 0
+        y_pred_proba[long_cols].max(axis=1) if len(long_cols) > 0 else 0
     )
     agg_predictions["short_label"] = (
-        y_pred_proba[short_cols].max(axis=1) if short_cols else 0
+        y_pred_proba[short_cols].max(axis=1) if len(short_cols) > 0 else 0
     )
 
     equity_curve, trades = run_atr_based_backtest(

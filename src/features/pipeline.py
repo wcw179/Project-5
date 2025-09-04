@@ -9,16 +9,32 @@ from src.features.sentiment.indicators import add_sentiment_features
 from src.features.temporal.sessions import add_session_features
 from src.features.trend.alignment import add_trend_features
 from src.features.volatility.distribution import add_volatility_features
+from src.features.macro.features import add_macro_features
+from src.features.entropy.features import add_entropy_features
+from src.features.entropy.generalized_mean import add_generalized_mean_entropy_features
+from src.features.entropy.portfolio_concentration import add_portfolio_concentration_features
+from src.features.structural_breaks.features import add_structural_break_features
 from src.logger import logger
 
 
-def create_all_features(df: pd.DataFrame, symbol: str) -> pd.DataFrame:
+def create_all_features(
+    df: pd.DataFrame,
+    symbol: str,
+    *,
+    macro_context: dict | None = None,
+    portfolio_weights: pd.DataFrame | None = None,
+) -> pd.DataFrame:
     """
     Orchestrates the entire feature engineering process for a given symbol.
 
     Args:
         df: Raw DataFrame with OHLCV data for a single symbol.
         symbol: The symbol being processed, for logging purposes.
+        macro_context: Optional dict of external macro/cross-asset series. If None,
+            macro features will be NaN and can be filled downstream.
+        portfolio_weights: Optional portfolio weights (index timestamps, columns assets)
+            for concentration features (AFML §18.8.3). If provided, concentration
+            metrics will be joined.
 
     Returns:
         DataFrame enriched with all new features.
@@ -49,6 +65,22 @@ def create_all_features(df: pd.DataFrame, symbol: str) -> pd.DataFrame:
     df_featured = add_sentiment_features(df_featured)
     logger.debug(f"({symbol}) ...Sentiment features OK.")
 
+    logger.debug(f"({symbol}) Adding macro & cross-asset features (V4 §2.6)...")
+    df_featured = add_macro_features(df_featured, context=macro_context)
+    logger.debug(f"({symbol}) ...Macro features OK.")
+
+    logger.debug(f"({symbol}) Adding entropy features (V4 §2.6)...")
+    df_featured = add_entropy_features(df_featured)
+    logger.debug(f"({symbol}) ...Entropy features OK.")
+
+    logger.debug(f"({symbol}) Adding generalized mean & Rényi entropy features (AFML §18.7)...")
+    df_featured = add_generalized_mean_entropy_features(df_featured)
+    logger.debug(f"({symbol}) ...Generalized mean & Rényi features OK.")
+
+    logger.debug(f"({symbol}) Adding structural break features (V4 §2.6)...")
+    df_featured = add_structural_break_features(df_featured)
+    logger.debug(f"({symbol}) ...Structural breaks features OK.")
+
     logger.debug(f"({symbol}) Adding fractal features...")
     df_featured = add_fractal_features(df_featured)
     logger.debug(f"({symbol}) ...Fractal features OK.")
@@ -56,6 +88,10 @@ def create_all_features(df: pd.DataFrame, symbol: str) -> pd.DataFrame:
     logger.debug(f"({symbol}) Adding regime features...")
     df_featured = add_volatility_regime(df_featured)
     logger.debug(f"({symbol}) ...Regime features OK.")
+
+    logger.debug(f"({symbol}) Adding portfolio concentration features (AFML §18.8.3)...")
+    df_featured = add_portfolio_concentration_features(df_featured, weights=portfolio_weights)
+    logger.debug(f"({symbol}) ...Portfolio concentration features OK.")
 
     # Drop rows with NaN values created by rolling indicators
     initial_rows = len(df_featured)
