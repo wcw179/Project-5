@@ -14,6 +14,10 @@ from src.features.entropy.features import add_entropy_features
 from src.features.entropy.generalized_mean import add_generalized_mean_entropy_features
 from src.features.entropy.portfolio_concentration import add_portfolio_concentration_features
 from src.features.structural_breaks.features import add_structural_break_features
+from src.features.mlfinpy_features import (
+    add_mlfinpy_filter_features,
+    add_mlfinpy_structural_break_features,
+)
 from src.logger import logger
 
 
@@ -80,10 +84,6 @@ def create_all_features(
     df_featured = add_generalized_mean_entropy_features(df_featured)
     logger.debug(f"({symbol}) ...Generalized mean & Rényi features OK.")
 
-    logger.debug(f"({symbol}) Adding structural break features (V4 §2.6)...")
-    df_featured = add_structural_break_features(df_featured)
-    logger.debug(f"({symbol}) ...Structural breaks features OK.")
-
     logger.debug(f"({symbol}) Adding fractal features...")
     df_featured = add_fractal_features(df_featured)
     logger.debug(f"({symbol}) ...Fractal features OK.")
@@ -91,6 +91,15 @@ def create_all_features(
     logger.debug(f"({symbol}) Adding regime features...")
     df_featured = add_volatility_regime(df_featured)
     logger.debug(f"({symbol}) ...Regime features OK.")
+
+    logger.debug(f"({symbol}) Adding mlfinpy filter features...")
+    df_featured = add_mlfinpy_filter_features(df_featured)
+    logger.debug(f"({symbol}) ...mlfinpy filter features OK.")
+
+    logger.debug(f"({symbol}) Adding mlfinpy structural break features...")
+    df_featured = add_mlfinpy_structural_break_features(df_featured)
+    logger.debug(f"({symbol}) ...mlfinpy structural break features OK.")
+
 
     if portfolio_weights is not None:
         logger.debug(f"({symbol}) Adding portfolio concentration features (AFML §18.8.3)...")

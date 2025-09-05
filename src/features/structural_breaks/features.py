@@ -61,10 +61,10 @@ def add_structural_break_features(
     close = out['close']
     ret = close.pct_change()
     # Chu-Stinchcombe-White Test for breaks
-    csw_stats = get_chu_stinchcombe_white_statistics(close, test_type='one_sided')
-    csw_break = (csw_stats['stat'] > csw_stats['critical_value']).astype(int)
-    out = out.join(csw_break.rename('csw_break'))
-    out['csw_break'].fillna(0, inplace=True)
+    # csw_stats = get_chu_stinchcombe_white_statistics(close, test_type='one_sided')
+    # csw_break = (csw_stats['stat'] > csw_stats['critical_value']).astype(int)
+    # out = out.join(csw_break.rename('csw_break'))
+    # out['csw_break'].fillna(0, inplace=True)
 
 
     # CUSUM event indicator

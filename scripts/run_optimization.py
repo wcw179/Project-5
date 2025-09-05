@@ -19,11 +19,9 @@ project_root = Path(__file__).resolve().parent.parent
 sys.path.append(str(project_root))
 
 from src.features.pipeline import create_all_features
-from src.labeling.triple_barrier_afml import (
-    TripleBarrierConfig,
-    generate_primary_labels,
-)
-from src.model_validation.purged_k_fold import PurgedKFold
+from src.labeling.triple_barrier_afml import TripleBarrierConfig
+from src.labeling.mlfinpy_labeling import generate_labels_with_mlfinpy as generate_primary_labels
+from mlfinpy.cross_validation.cross_validation import PurgedKFold
 from src.modeling.optimization import financial_objective_function
 
 # --- Logger Configuration ---
@@ -45,7 +43,7 @@ SYMBOL = "EURUSDm"
 START_DATE = "2023-01-01"
 END_DATE = "2025-08-15"
 VALIDATION_SPLIT_DATE = "2025-01-01"
-HOLD_PERIOD_BARS = [12, 48, 144, 288]  # 1h, 4h, 12h, 24h
+HOLD_PERIOD_BARS = [288]  # 24-hour horizon
 N_TRIALS = 100
 
 
@@ -67,15 +65,15 @@ def load_data():
     # AFML triple-barrier labels (long + short)
     tb_cfg = TripleBarrierConfig(
         horizons=HOLD_PERIOD_BARS,  # list of bars
-        rr_multiples=[3.0, 5.0, 10.0, 15.0],
+        rr_multiples=[1.0, 1.5, 2.0, 2.5],  # More realistic R/R targets
         vol_method="atr",
         atr_period=100,
         vol_window=288,
-        atr_mult_base=2.0,
+        atr_mult_base=1.5,  # Tighter stop-loss base
         include_short=True,  # ensure both sides are considered
         spread_pips=2.0,
     )
-    labels, sample_info = generate_primary_labels(data, SYMBOL, tb_cfg)
+    labels, sample_info = generate_primary_labels(data, tb_cfg)
 
     # Targets: long/short hit labels
     label_cols = [
@@ -84,11 +82,14 @@ def load_data():
         if col.startswith("long_hit_") or col.startswith("short_hit_")
     ]
 
-    aligned_index = featured_data.index.intersection(labels.index)
-    X = featured_data.loc[aligned_index]
-    y = labels.loc[aligned_index][label_cols]
-    trade_data = data.loc[aligned_index][["high", "low", "close"]]
-    sample_info = sample_info.loc[aligned_index]
+    # Align all dataframes to a common index to ensure consistency
+    valid_sample_info = sample_info.dropna(subset=['t1'])
+    common_index = featured_data.index.intersection(labels.index).intersection(valid_sample_info.index)
+
+    X = featured_data.loc[common_index]
+    y = labels.loc[common_index][label_cols]
+    trade_data = data.loc[common_index][["high", "low", "close"]]
+    sample_info = valid_sample_info.loc[common_index]
 
     logger.success("Data loading and preparation finished.")
     return X, y, trade_data, sample_info
@@ -172,10 +173,20 @@ def main():
         logger.warning(f"Removed {len(removed)} single-class labels.")
     y_filtered = y[valid_labels]
 
-    # --- Purged K-Fold Cross-Validation Setup ---
+    # --- Purged K-Fold Cross-Validation using mlfinpy ---
     n_splits = 5
-    pkf = PurgedKFold(n_splits=n_splits, embargo_td=pd.Timedelta(days=1))
-    cv_splits = list(pkf.split(X, sample_info=sample_info))
+    # The mlfinpy PurgedKFold class requires the 'samples_info_sets' to have the same index as X.
+    pkf = PurgedKFold(
+        n_splits=n_splits,
+        samples_info_sets=sample_info['t1'], # This is now correctly aligned with X
+        pct_embargo=0.01 # 1% of the data is embargoed
+    )
+    cv_splits = list(pkf.split(X))
+
+    logger.debug(f"Shapes before PurgedKFold: X={X.shape}, y={y_filtered.shape}, sample_info={sample_info.shape}")
+    logger.debug(f"Sample of X index:\n{X.head().index}")
+    logger.debug(f"Sample of y index:\n{y_filtered.head().index}")
+    logger.debug(f"Sample of sample_info index:\n{sample_info.head().index}")
 
     # --- Optuna Study ---
     logger.info(f"--- Starting Optimization ({N_TRIALS} Trials) ---")
