@@ -50,9 +50,10 @@ def _rolling_sign_change_rate(ret: pd.Series, window: int) -> pd.Series:
 def _rolling_binned_entropy(ret: pd.Series, window: int, bins: int = 7) -> pd.Series:
     # entropy of intrawindow return distribution after binning
     def _bin_ent(x: np.ndarray) -> float:
-        if len(x) == 0:
+        x_finite = x[np.isfinite(x)]
+        if len(x_finite) == 0:
             return np.nan
-        hist, _ = np.histogram(x, bins=bins)
+        hist, _ = np.histogram(x_finite, bins=bins)
         p = hist / max(1, hist.sum())
         return _shannon_entropy_from_probs(p)
 

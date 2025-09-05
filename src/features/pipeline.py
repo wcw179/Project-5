@@ -65,9 +65,12 @@ def create_all_features(
     df_featured = add_sentiment_features(df_featured)
     logger.debug(f"({symbol}) ...Sentiment features OK.")
 
-    logger.debug(f"({symbol}) Adding macro & cross-asset features (V4 §2.6)...")
-    df_featured = add_macro_features(df_featured, context=macro_context)
-    logger.debug(f"({symbol}) ...Macro features OK.")
+    if macro_context is not None:
+        logger.debug(f"({symbol}) Adding macro & cross-asset features (V4 §2.6)...")
+        df_featured = add_macro_features(df_featured, context=macro_context)
+        logger.debug(f"({symbol}) ...Macro features OK.")
+    else:
+        logger.debug(f"({symbol}) Skipping macro features: no context provided.")
 
     logger.debug(f"({symbol}) Adding entropy features (V4 §2.6)...")
     df_featured = add_entropy_features(df_featured)
@@ -89,9 +92,16 @@ def create_all_features(
     df_featured = add_volatility_regime(df_featured)
     logger.debug(f"({symbol}) ...Regime features OK.")
 
-    logger.debug(f"({symbol}) Adding portfolio concentration features (AFML §18.8.3)...")
-    df_featured = add_portfolio_concentration_features(df_featured, weights=portfolio_weights)
-    logger.debug(f"({symbol}) ...Portfolio concentration features OK.")
+    if portfolio_weights is not None:
+        logger.debug(f"({symbol}) Adding portfolio concentration features (AFML §18.8.3)...")
+        df_featured = add_portfolio_concentration_features(
+            df_featured, weights=portfolio_weights
+        )
+        logger.debug(f"({symbol}) ...Portfolio concentration features OK.")
+    else:
+        logger.debug(
+            f"({symbol}) Skipping portfolio concentration features: no weights provided."
+        )
 
     # Drop rows with NaN values created by rolling indicators
     initial_rows = len(df_featured)

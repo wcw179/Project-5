@@ -67,7 +67,7 @@ def load_data():
     # AFML triple-barrier labels (long + short)
     tb_cfg = TripleBarrierConfig(
         horizons=HOLD_PERIOD_BARS,  # list of bars
-        rr_multiples=[5.0, 10.0, 15.0, 20.0],
+        rr_multiples=[3.0, 5.0, 10.0, 15.0],
         vol_method="atr",
         atr_period=100,
         vol_window=288,

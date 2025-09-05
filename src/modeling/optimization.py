@@ -106,8 +106,8 @@ def financial_objective_function(
     # Hyperparameters for the backtest
     long_threshold = trial.suggest_float("long_threshold", 0.31, 0.95)
     short_threshold = trial.suggest_float("short_threshold", 0.31, 0.95)
-    atr_multiplier_sl = trial.suggest_float("atr_multiplier_sl", 1.0, 5.0)
-    atr_multiplier_tp = trial.suggest_float("atr_multiplier_tp", 1.0, 10.0)
+    atr_multiplier_sl = trial.suggest_float("atr_multiplier_sl", 1.0, 6.0)
+    atr_multiplier_tp = trial.suggest_float("atr_multiplier_tp", 1.0, 30.0)
     position_size_pct = trial.suggest_float(
         "position_size_pct", 0.01, 0.1
     )  # Risk 1-10% of equity
