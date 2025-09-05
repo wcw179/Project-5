@@ -24,30 +24,101 @@ import numpy as np
 import pandas as pd
 
 
-@dataclass
-class CusumResult:
-    stat: pd.Series  # cumulative statistic
-    crit_upper: Optional[pd.Series] = None
-    crit_lower: Optional[pd.Series] = None
+# --- Dependency-free multiprocessing utility ---
+import concurrent.futures
+import os
 
+def _run_parallel(func, iterable, num_threads):
+    """Agnostic parallel execution function."""
+    if num_threads == 1:
+        return [func(i) for i in iterable]
+    with concurrent.futures.ProcessPoolExecutor(max_workers=num_threads) as executor:
+        return list(executor.map(func, iterable))
 
-def _demean(x: pd.Series) -> pd.Series:
-    return x - x.mean()
+# --- Chu-Stinchcombe-White Test Implementation (dependency-free) ---
 
+def _get_values_diff(args):
+    """Helper to compute difference for a single (index, ind) pair."""
+    series, test_type, index, ind = args
+    if test_type == 'one_sided':
+        return series.loc[index] - series.loc[ind]
+    if test_type == 'two_sided':
+        return abs(series.loc[index] - series.loc[ind])
+    raise ValueError('Test type is unknown: can be either one_sided or two_sided')
 
-def csw_cusum_levels(x: pd.Series) -> CusumResult:
-    """17.3.2 Chu–Stinchcombe–White CUSUM Test on levels (simplified).
+def _get_s_n_for_t_chunk(args):
+    """Processes a chunk of molecule indices for the CSW test."""
+    series, test_type, molecule_chunk = args
+    s_n_t_series = pd.DataFrame(index=molecule_chunk, columns=['stat', 'critical_value'])
 
-    C_t = cumsum((x - mean(x)) / std(x))
-    Returns the cumulative path; rejection requires critical boundaries which
-    depend on sample and desired size. We leave crit bands None (caller can set).
+    for index in molecule_chunk:
+        series_t = series.loc[:index]
+        if len(series_t) < 2:
+            continue
+
+        squared_diff = series_t.diff().dropna() ** 2
+        integer_index = series_t.index.get_loc(index)
+        if integer_index < 2:
+            continue
+
+        sigma_sq_t = (1 / (integer_index - 1)) * squared_diff.sum()
+        if sigma_sq_t == 0:
+            continue
+
+        max_s_n_value = -np.inf
+        max_s_n_critical_value = None
+
+        for ind in series_t.index[:-1]:
+            values_diff = _get_values_diff((series, test_type, index, ind))
+            temp_integer_index = series_t.index.get_loc(ind)
+            denominator = sigma_sq_t * np.sqrt(integer_index - temp_integer_index)
+            if denominator == 0:
+                continue
+
+            s_n_t = (1 / denominator) * values_diff
+            if s_n_t > max_s_n_value:
+                max_s_n_value = s_n_t
+                log_val = integer_index - temp_integer_index
+                if log_val > 0:
+                    max_s_n_critical_value = np.sqrt(4.6 + np.log(log_val))
+
+        s_n_t_series.loc[index] = [max_s_n_value, max_s_n_critical_value]
+
+    return s_n_t_series.dropna()
+
+def get_chu_stinchcombe_white_statistics(
+    series: pd.Series, test_type: str = 'one_sided', num_threads: int = -1
+) -> pd.DataFrame:
+    """17.3.2 Chu–Stinchcombe–White Test (dependency-free multiprocessing version).
+
+    Args:
+        series: Series to test.
+        test_type: 'one_sided' or 'two_sided'.
+        num_threads: Number of CPU cores to use. -1 means all available.
+
+    Returns:
+        DataFrame with ['stat', 'critical_value'].
     """
-    x = x.dropna()
-    if x.empty:
-        return CusumResult(stat=x)
-    z = (x - x.mean()) / (x.std(ddof=0) or np.nan)
-    c = z.cumsum()
-    return CusumResult(stat=c)
+    if num_threads == -1:
+        num_threads = os.cpu_count() or 1
+
+    molecule = series.index[2:]
+    if len(molecule) < num_threads:
+        num_threads = 1 # Not worth parallelizing for small jobs
+
+    # Create chunks for parallel processing
+    chunks = np.array_split(molecule, num_threads)
+    args_list = [(series, test_type, chunk) for chunk in chunks]
+
+    # Run in parallel
+    results = _run_parallel(_get_s_n_for_t_chunk, args_list, num_threads)
+
+    # Combine and sort results
+    if not results:
+        return pd.DataFrame(columns=['stat', 'critical_value'])
+
+    combined_df = pd.concat(results)
+    return combined_df.sort_index()
 
 
 def bde_cusum_recursive_residuals(y: pd.Series) -> CusumResult:

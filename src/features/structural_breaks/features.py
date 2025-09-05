@@ -17,6 +17,7 @@ from typing import Sequence
 import numpy as np
 import pandas as pd
 
+from src.features.structural_breaks.afml import get_chu_stinchcombe_white_statistics
 
 def _rolling_std_eps(x: pd.Series, w: int) -> pd.Series:
     s = x.rolling(w, min_periods=max(8, w // 4)).std(ddof=0)
@@ -59,6 +60,12 @@ def add_structural_break_features(
     out = df.copy()
     close = out['close']
     ret = close.pct_change()
+    # Chu-Stinchcombe-White Test for breaks
+    csw_stats = get_chu_stinchcombe_white_statistics(close, test_type='one_sided')
+    csw_break = (csw_stats['stat'] > csw_stats['critical_value']).astype(int)
+    out = out.join(csw_break.rename('csw_break'))
+    out['csw_break'].fillna(0, inplace=True)
+
 
     # CUSUM event indicator
     ev = _cusum_events(ret, cusum_k)
