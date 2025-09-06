@@ -53,11 +53,16 @@ def main():
     logger.info(f"Median t-value: {ts_labels['t_value'].median():.2f}")
 
     # --- Filter for Significant t_events ---
-    significant_trends = ts_labels[ts_labels['t_value'].abs() > T_VALUE_THRESHOLD]
+    # Instead of a fixed threshold, let's use a dynamic one based on the distribution.
+    # We'll filter for t-values in the top 20% (above the 80th percentile).
+    dynamic_threshold = ts_labels['t_value'].abs().quantile(0.80)
+    logger.info(f"Dynamic t-value threshold (80th percentile): {dynamic_threshold:.2f}")
+
+    significant_trends = ts_labels[ts_labels['t_value'].abs() > dynamic_threshold]
     t_events = significant_trends.index
     side_prediction = significant_trends['t_value'].apply(np.sign)
 
-    logger.info(f"--- Analysis of Significant t_events (Threshold > {T_VALUE_THRESHOLD}) ---")
+    logger.info(f"--- Analysis of Significant t_events (Threshold > {dynamic_threshold:.2f}) ---")
     logger.success(f"Found {len(t_events)} significant events ({len(t_events)/len(t_events_sampled)*100:.2f}% of sampled events).")
 
     if not t_events.empty:
