@@ -14,10 +14,9 @@ from src.backtesting.metrics import get_performance_summary
 
 
 def run_atr_based_backtest(
-    predictions: pd.DataFrame,
+    predictions: pd.DataFrame, # Now contains 'win_prob' and 'side'
     trade_data: pd.DataFrame,
-    long_threshold: float,
-    short_threshold: float,
+    win_probability_threshold: float,
     atr_multiplier_sl: float,
     atr_multiplier_tp: float,
     position_size_pct: float,
@@ -27,8 +26,9 @@ def run_atr_based_backtest(
     """
     Runs a more realistic backtest using ATR-based stops and targets.
     """
-    long_signals = predictions["long_label"] > long_threshold
-    short_signals = predictions["short_label"] > short_threshold
+    signals = predictions['win_prob'] > win_probability_threshold
+    long_signals = (predictions['side'] == 1) & signals
+    short_signals = (predictions['side'] == -1) & signals
 
     atr = ta.atr(
         trade_data["high"], trade_data["low"], trade_data["close"], length=atr_period
@@ -104,32 +104,29 @@ def financial_objective_function(
     Calculates a weighted financial score based on the project's specific goals.
     """
     # Hyperparameters for the backtest
-    long_threshold = trial.suggest_float("long_threshold", 0.31, 0.95)
-    short_threshold = trial.suggest_float("short_threshold", 0.31, 0.95)
+    win_probability_threshold = trial.suggest_float("win_probability_threshold", 0.5, 0.95)
     atr_multiplier_sl = trial.suggest_float("atr_multiplier_sl", 1.0, 6.0)
     atr_multiplier_tp = trial.suggest_float("atr_multiplier_tp", 1.0, 30.0)
     position_size_pct = trial.suggest_float(
         "position_size_pct", 0.01, 0.1
     )  # Risk 1-10% of equity
 
-    # Aggregate multi-label predictions
-    # Support both legacy ('long_*'/'short_*') and AFML triple-barrier ('hit_*') labels
-    long_cols = [c for c in y_pred_proba.columns if ("long" in c) or c.startswith("hit_")]
-    short_cols = [c for c in y_pred_proba.columns if "short" in c]
+    # For meta-labeling, the side is a feature in X, and the model predicts the probability of a win.
+    # We aggregate the win probability across all meta-labels.
+    meta_label_cols = [c for c in y_pred_proba.columns if c.startswith('meta_label_')]
 
+    # The final prediction is the highest probability of a win across all R/R targets.
     agg_predictions = pd.DataFrame(index=y_pred_proba.index)
-    agg_predictions["long_label"] = (
-        y_pred_proba[long_cols].max(axis=1) if len(long_cols) > 0 else 0
-    )
-    agg_predictions["short_label"] = (
-        y_pred_proba[short_cols].max(axis=1) if len(short_cols) > 0 else 0
-    )
+    agg_predictions['win_prob'] = y_pred_proba[meta_label_cols].max(axis=1) if meta_label_cols else 0
+
+    # The side comes from the primary model (trend-scanning) and is part of the trade_data for the backtest.
+    # We'll select the side from the trade_data which should have the same index.
+    agg_predictions = agg_predictions.join(trade_data['side'])
 
     equity_curve, trades = run_atr_based_backtest(
         predictions=agg_predictions,
-        trade_data=trade_data,
-        long_threshold=long_threshold,
-        short_threshold=short_threshold,
+        trade_data=trade_data.drop(columns=['side']), # Drop side from trade_data as it's now in predictions
+        win_probability_threshold=win_probability_threshold,
         atr_multiplier_sl=atr_multiplier_sl,
         atr_multiplier_tp=atr_multiplier_tp,
         position_size_pct=position_size_pct,

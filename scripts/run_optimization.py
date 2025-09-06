@@ -20,7 +20,7 @@ sys.path.append(str(project_root))
 
 from src.features.pipeline import create_all_features
 from src.labeling.triple_barrier_afml import TripleBarrierConfig
-from src.labeling.mlfinpy_labeling import generate_labels_with_mlfinpy as generate_primary_labels
+from src.labeling.trend_scanning_labeling import generate_trend_scanning_meta_labels
 from mlfinpy.cross_validation.cross_validation import PurgedKFold
 from src.modeling.optimization import financial_objective_function
 
@@ -73,23 +73,24 @@ def load_data():
         include_short=True,  # ensure both sides are considered
         spread_pips=2.0,
     )
-    labels, sample_info = generate_primary_labels(data, tb_cfg)
+    labels, sample_info = generate_trend_scanning_meta_labels(data, tb_cfg)
 
-    # Targets: long/short hit labels
-    label_cols = [
-        col
-        for col in labels.columns
-        if col.startswith("long_hit_") or col.startswith("short_hit_")
-    ]
+    # --- Align and Finalize Data for Meta-Labeling ---
+    label_cols = [c for c in labels.columns if c.startswith('meta_label_')]
+    if not label_cols:
+        raise ValueError("No meta-labels were generated. Check labeling parameters.")
 
     # Align all dataframes to a common index to ensure consistency
-    valid_sample_info = sample_info.dropna(subset=['t1'])
+    valid_sample_info = sample_info.dropna(subset=['t1', 'side'])
     common_index = featured_data.index.intersection(labels.index).intersection(valid_sample_info.index)
 
-    X = featured_data.loc[common_index]
+    X_features = featured_data.loc[common_index]
     y = labels.loc[common_index][label_cols]
     trade_data = data.loc[common_index][["high", "low", "close"]]
     sample_info = valid_sample_info.loc[common_index]
+
+    # Add the primary model's prediction (side) as a feature to the secondary model
+    X = X_features.join(sample_info['side'])
 
     logger.success("Data loading and preparation finished.")
     return X, y, trade_data, sample_info
