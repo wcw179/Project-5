@@ -7,6 +7,7 @@ identifying moments of clear trends in the market.
 import sys
 from pathlib import Path
 import pandas as pd
+import numpy as np
 from sqlalchemy import create_engine
 from loguru import logger
 
@@ -20,9 +21,10 @@ from mlfinpy.labeling.trend_scanning import trend_scanning_labels
 DB_PATH = project_root / "data" / "m5_trading.db"
 SYMBOL = "EURUSDm"
 START_DATE = "2023-01-01"
-END_DATE = "2025-08-15"
+END_DATE = "2023-12-31"  # Shorten date range for faster testing
 LOOK_FORWARD_WINDOW = 288  # 24 hours
 T_VALUE_THRESHOLD = 2.0 # Standard threshold for statistical significance
+EVENT_SAMPLING_RATE = 12 # Run trend-scanning once per hour (12 * 5 mins)
 
 def main():
     """Loads data and runs the trend-scanning analysis."""
@@ -35,8 +37,10 @@ def main():
     logger.info(f"Loaded {len(data)} total bars.")
 
     # --- Run Trend-Scanning ---
-    logger.info(f"Running trend-scanning with a look-forward window of {LOOK_FORWARD_WINDOW} bars...")
-    ts_labels = trend_scanning_labels(data['close'], look_forward_window=LOOK_FORWARD_WINDOW)
+    # To improve performance, we sample the events we run the expensive algorithm on.
+    t_events_sampled = data.index[::EVENT_SAMPLING_RATE]
+    logger.info(f"Running trend-scanning on {len(t_events_sampled)} sampled events (1 every {EVENT_SAMPLING_RATE*5} mins)...")
+    ts_labels = trend_scanning_labels(data['close'], t_events=t_events_sampled, look_forward_window=LOOK_FORWARD_WINDOW)
     ts_labels.dropna(inplace=True)
     logger.info(f"Generated {len(ts_labels)} trend-scanning results.")
 
@@ -54,8 +58,8 @@ def main():
     side_prediction = significant_trends['t_value'].apply(np.sign)
 
     logger.info(f"--- Analysis of Significant t_events (Threshold > {T_VALUE_THRESHOLD}) ---")
-    logger.success(f"Found {len(t_events)} significant events ({len(t_events)/len(data)*100:.2f}% of total bars).")
-    
+    logger.success(f"Found {len(t_events)} significant events ({len(t_events)/len(t_events_sampled)*100:.2f}% of sampled events).")
+
     if not t_events.empty:
         up_trends = (side_prediction == 1).sum()
         down_trends = (side_prediction == -1).sum()
