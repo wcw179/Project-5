@@ -171,8 +171,7 @@
 
 ### **Task 1A.2: Multi-Label Target Generation and Meta-Labeling (V4)**
 - [ ] **Dynamic Labeling System:**
-  - [ ] Create forward-looking profit target detection using AFML triple-barrier with multi-RR, multi-horizon approach
-  - [ ] Implement multi-horizon labeling (1-4h, 4-12h, 12-24h) with regime-adaptive windows (crisis/normal/low-vol)
+  - [ ] Create forward-looking profit target detection using AFML triple-barrier with multi-RR, 
   - [ ] Add realistic slippage and spread cost modeling
   - [ ] Build label validation and consistency checks
 
