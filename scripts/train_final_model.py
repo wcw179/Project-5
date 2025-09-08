@@ -65,7 +65,7 @@ def main():
     logger.success("Final model training complete.")
 
     # 4. Save the trained model
-    model_path = MODEL_DIR / "final_model.joblib"
+    model_path = MODEL_DIR / "final_model_EURUSD.joblib"
     joblib.dump(model, model_path)
     logger.success(f"Saved final trained model to {model_path}")
 
