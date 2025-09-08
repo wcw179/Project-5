@@ -8,7 +8,7 @@ distlib==0.4.0
 filelock==3.19.1
 flake8==7.3.0
 greenlet==3.2.4
-mlfinlab==1.0.0
+mlfinpy
 identify==2.6.13
 isort==6.0.1
 jaraco.classes==3.4.0
@@ -23,7 +23,7 @@ more-itertools==10.7.0
 mypy==1.17.1
 mypy-extensions==1.1.0
 nodeenv==1.9.1
-numba==0.61.2
+numba==0.60.0
 numpy==1.26.4
 optuna==3.6.1
 packaging==25.0
@@ -55,3 +55,4 @@ tzdata==2025.2
 virtualenv==20.34.0
 win32-setctime==1.2.0
 xgboost==2.0.3
+mlfinpy

@@ -15,7 +15,7 @@ from loguru import logger
 project_root = Path(__file__).resolve().parent.parent
 sys.path.append(str(project_root))
 
-from mlfinpy.labeling.trend_scanning import trend_scanning_labels
+from src.labeling.robust_trend_scanning import robust_trend_scanning_labels as trend_scanning_labels
 
 # --- Constants ---
 DB_PATH = project_root / "data" / "m5_trading.db"
@@ -70,6 +70,12 @@ def main():
         down_trends = (side_prediction == -1).sum()
         logger.info(f"  - Upward trends: {up_trends} ({up_trends/len(t_events)*100:.2f}%)")
         logger.info(f"  - Downward trends: {down_trends} ({down_trends/len(t_events)*100:.2f}%)")
+
+    # --- Save Results for Analysis ---
+    results_df = pd.concat([significant_trends, side_prediction.rename('side')], axis=1)
+    output_path = project_root / "reports" / "trend_scanning_analysis.csv"
+    results_df.to_csv(output_path)
+    logger.success(f"Saved analysis results to {output_path}")
 
 if __name__ == "__main__":
     main()

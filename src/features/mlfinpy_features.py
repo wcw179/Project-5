@@ -41,13 +41,36 @@ def add_mlfinpy_structural_break_features(df: pd.DataFrame) -> pd.DataFrame:
         DataFrame with new structural break features.
     """
     out = df.copy()
+    close = out['close']
 
-    # Supremum Augmented Dickey-Fuller (SADF) - Computationally intensive
-    # This test is currently disabled to improve pipeline speed.
-    # To enable, uncomment the following lines and ensure 'close' is defined.
-    # close = out['close']
-    # sadf_stats = get_sadf(close, min_length=288, add_const=True, model='SADF')
-    # out['mlfinpy_sadf'] = sadf_stats
+    # Initialize placeholder columns
+    out['sadf_log_tstat'] = 0.0
+    out['sadf_log_crit'] = 0.0
+    out['sadf_log_break'] = 0.0
+
+    try:
+        # To manage performance, run SADF on a sampled subset of the data
+        # We run it once every 4 hours (48 * 5 mins)
+        sampling_rate = 48
+        close_sampled = close.iloc[::sampling_rate]
+
+        print(f"[Info] Running SADF on {len(close_sampled)} sampled points...")
+        # min_length is reduced as we are working with a smaller, sampled dataset
+        sadf_stats = get_sadf(series=close_sampled.dropna(), model='linear', lags=10, min_length=60, add_const=True, num_threads=1, verbose=False)
+
+        # Create full-length series and forward-fill the results
+        sadf_tstat = sadf_stats['stat'].reindex(out.index).ffill()
+        sadf_crit = sadf_stats['critical_value'].reindex(out.index).ffill()
+
+        # If successful, populate the columns
+        out['sadf_log_tstat'] = sadf_tstat
+        out['sadf_log_crit'] = sadf_crit
+        out['sadf_log_break'] = (sadf_tstat > sadf_crit).astype(int)
+        print("[Info] SADF calculation successful.")
+
+    except Exception as e:
+        # If the test fails, log a warning but proceed with placeholder values
+        print(f"[Warning] SADF calculation failed: {e}. Using neutral placeholders.")
 
     return out
 

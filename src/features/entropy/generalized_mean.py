@@ -104,11 +104,11 @@ def rolling_renyi_entropy(
 def add_generalized_mean_entropy_features(
     df: pd.DataFrame,
     *,
-    window_power_mean: int = 288,
-    power_orders: Sequence[float] = (-2.0, -1.0, 0.0, 1.0, 2.0),
-    window_renyi: int = 288,
-    renyi_q_list: Sequence[float] = (0.5, 1.0, 2.0),
-    renyi_bins: int = 11,
+    window_power_mean: int = 144,  # Reduced for performance
+    power_orders: Sequence[float] = (-1.0, 1.0, 2.0), # Reduced for performance
+    window_renyi: int = 144,  # Reduced for performance
+    renyi_q_list: Sequence[float] = (0.5, 2.0), # Reduced for performance
+    renyi_bins: int = 10, # Reduced for performance
 ) -> pd.DataFrame:
     """Combine rolling power means of |returns| and Rényi entropies of returns."""
     out = df.copy()

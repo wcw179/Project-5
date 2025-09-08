@@ -78,4 +78,3 @@ def generate_trend_scanning_meta_labels(
     sample_info = sample_info.loc[labels_df.index.intersection(sample_info.index)]
 
     return labels_df, sample_info
-

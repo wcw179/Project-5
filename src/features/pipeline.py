@@ -100,6 +100,10 @@ def create_all_features(
     df_featured = add_mlfinpy_structural_break_features(df_featured)
     logger.debug(f"({symbol}) ...mlfinpy structural break features OK.")
 
+    logger.debug(f"({symbol}) Adding custom structural break features...")
+    df_featured = add_structural_break_features(df_featured)
+    logger.debug(f"({symbol}) ...Custom structural break features OK.")
+
 
     if portfolio_weights is not None:
         logger.debug(f"({symbol}) Adding portfolio concentration features (AFML §18.8.3)...")

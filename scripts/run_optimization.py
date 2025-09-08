@@ -19,8 +19,10 @@ project_root = Path(__file__).resolve().parent.parent
 sys.path.append(str(project_root))
 
 from src.features.pipeline import create_all_features
-from src.labeling.triple_barrier_afml import TripleBarrierConfig
-from src.labeling.trend_scanning_labeling import generate_trend_scanning_meta_labels
+from src.labeling.trend_scanning_labeling import generate_true_labels
+from sklearn.model_selection import TimeSeriesSplit
+from sklearn.metrics import f1_score
+from src.labeling.trend_scanning_labeling import generate_trend_scanning_meta_labels as generate_primary_labels
 from mlfinpy.cross_validation.cross_validation import PurgedKFold
 from src.modeling.optimization import financial_objective_function
 
@@ -41,14 +43,14 @@ DB_PATH = project_root / "data" / "m5_trading.db"
 MODEL_DIR = project_root / "models"
 SYMBOL = "EURUSDm"
 START_DATE = "2023-01-01"
-END_DATE = "2025-08-15"
+END_DATE = "2025-08-31"
 VALIDATION_SPLIT_DATE = "2025-01-01"
 HOLD_PERIOD_BARS = [288]  # 24-hour horizon
 N_TRIALS = 100
 
 
 def load_data():
-    """Loads and prepares data from the database and generates AFML labels."""
+    """Loads data and generates true {-1, 0, 1} labels."""
     logger.info("Loading and preparing data...")
     engine = create_engine(f"sqlite:///{DB_PATH}")
     query = (
@@ -59,41 +61,16 @@ def load_data():
     if data.index.has_duplicates:
         data = data[~data.index.duplicated(keep="last")]
 
-    # Feature engineering
-    featured_data = create_all_features(data, SYMBOL)
-
-    # AFML triple-barrier labels (long + short)
-    tb_cfg = TripleBarrierConfig(
-        horizons=HOLD_PERIOD_BARS,  # list of bars
-        rr_multiples=[1.0, 1.5, 2.0, 2.5],  # More realistic R/R targets
-        vol_method="atr",
-        atr_period=100,
-        vol_window=288,
-        atr_mult_base=1.5,  # Tighter stop-loss base
-        include_short=True,  # ensure both sides are considered
-        spread_pips=2.0,
+    # Generate true labels using our corrected function
+    X, y, sample_info = generate_true_labels(
+        data,
+        pt_mult=20.0,
+        sl_mult=1.5,
+        num_days=5
     )
-    labels, sample_info = generate_trend_scanning_meta_labels(data, tb_cfg)
-
-    # --- Align and Finalize Data for Meta-Labeling ---
-    label_cols = [c for c in labels.columns if c.startswith('meta_label_')]
-    if not label_cols:
-        raise ValueError("No meta-labels were generated. Check labeling parameters.")
-
-    # Align all dataframes to a common index to ensure consistency
-    valid_sample_info = sample_info.dropna(subset=['t1', 'side'])
-    common_index = featured_data.index.intersection(labels.index).intersection(valid_sample_info.index)
-
-    X_features = featured_data.loc[common_index]
-    y = labels.loc[common_index][label_cols]
-    trade_data = data.loc[common_index][["high", "low", "close"]]
-    sample_info = valid_sample_info.loc[common_index]
-
-    # Add the primary model's prediction (side) as a feature to the secondary model
-    X = X_features.join(sample_info['side'])
 
     logger.success("Data loading and preparation finished.")
-    return X, y, trade_data, sample_info
+    return X, y, sample_info
 
 
 def objective(
@@ -124,7 +101,7 @@ def objective(
         logger.info(f"Trial {trial.number}: Processing fold {i+1}/{len(cv_splits)}")
         X_train, X_val = X.iloc[train_idx], X.iloc[val_idx]
         y_train, y_val = y.iloc[train_idx], y.iloc[val_idx]
-        trade_data_val = trade_data.iloc[val_idx]
+        trade_data_val = trade_data.iloc[val_idx].join(X_val['side'])
 
         y_pred_proba_fold = pd.DataFrame(index=X_val.index)
 
@@ -133,7 +110,6 @@ def objective(
             y_train_label = y_train.iloc[:, j]
             y_val_label = y_val.iloc[:, j]
 
-            # Skip if only one class in training fold
             if y_train_label.nunique() < 2:
                 continue
 
@@ -142,7 +118,6 @@ def objective(
                 X_train, y_train_label, eval_set=[(X_val, y_val_label)], verbose=False
             )
 
-            # Ensure positive-class probabilities
             if (
                 hasattr(estimator, "classes_")
                 and len(estimator.classes_) > 1
@@ -165,26 +140,17 @@ def objective(
 def main():
     """Main function to run the optimization study."""
     logger.info(f"Using XGBoost version: {xgb.__version__}")
-    X, y, trade_data, sample_info = load_data()
+    X, y, sample_info = load_data()
 
-    # Filter out labels with only one class across the entire dataset
-    valid_labels = [col for col in y.columns if y[col].nunique() > 1]
-    removed = [col for col in y.columns if col not in valid_labels]
-    if removed:
-        logger.warning(f"Removed {len(removed)} single-class labels.")
-    y_filtered = y[valid_labels]
+    # Now y is a Series, no need to filter columns
+    y_filtered = y
 
-    # --- Purged K-Fold Cross-Validation using mlfinpy ---
+    # --- TimeSeriesSplit Cross-Validation ---
     n_splits = 5
-    # The mlfinpy PurgedKFold class requires the 'samples_info_sets' to have the same index as X.
-    pkf = PurgedKFold(
-        n_splits=n_splits,
-        samples_info_sets=sample_info['t1'], # This is now correctly aligned with X
-        pct_embargo=0.01 # 1% of the data is embargoed
-    )
-    cv_splits = list(pkf.split(X))
+    tscv = TimeSeriesSplit(n_splits=n_splits)
+    cv_splits = list(tscv.split(X))
 
-    logger.debug(f"Shapes before PurgedKFold: X={X.shape}, y={y_filtered.shape}, sample_info={sample_info.shape}")
+    logger.debug(f"Shapes before PurgedKFold: X={X.shape}, y={y.shape}, sample_info={sample_info.shape}")
     logger.debug(f"Sample of X index:\n{X.head().index}")
     logger.debug(f"Sample of y index:\n{y_filtered.head().index}")
     logger.debug(f"Sample of sample_info index:\n{sample_info.head().index}")
@@ -197,9 +163,9 @@ def main():
     )
     study = optuna.create_study(direction="maximize", pruner=pruner)
     study.optimize(
-        lambda trial: objective(trial, X, y_filtered, trade_data, cv_splits),
+        lambda trial: objective(trial, X, y, cv_splits),
         n_trials=N_TRIALS,
-        n_jobs=-1,
+        n_jobs=-1,  # Use all available CPU cores
     )
 
     logger.info(f"Best trial score: {study.best_value}")
