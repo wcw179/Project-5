@@ -22,9 +22,12 @@ from src.features.pipeline import create_all_features
 from src.labeling.trend_scanning_labeling import generate_true_labels
 from sklearn.model_selection import TimeSeriesSplit
 from sklearn.metrics import f1_score
+<<<<<<< HEAD
 from src.labeling.trend_scanning_labeling import generate_trend_scanning_meta_labels as generate_primary_labels
 from mlfinpy.cross_validation.cross_validation import PurgedKFold
 from src.modeling.optimization import financial_objective_function
+=======
+>>>>>>> 62ce9b2e17fee7f24ee56398ea656e5178723856
 
 # --- Logger Configuration ---
 log_file_path = project_root / "logs" / "optimization.log"
@@ -76,48 +79,55 @@ def load_data():
 def objective(
     trial: optuna.trial.Trial,
     X: pd.DataFrame,
-    y: pd.DataFrame,
-    trade_data: pd.DataFrame,
+    y: pd.Series,
     cv_splits: list,
 ) -> float:
-    """Optuna objective function to train and evaluate models using cross-validation."""
+    """Optuna objective function to train and evaluate models using F1-score."""
     params = {
-        "objective": "binary:logistic",
-        "eval_metric": "logloss",
-        "n_estimators": trial.suggest_int("n_estimators", 100, 1000),
-        "max_depth": trial.suggest_int("max_depth", 3, 10),
-        "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.3, log=True),
-        "subsample": trial.suggest_float("subsample", 0.6, 1.0),
-        "colsample_bytree": trial.suggest_float("colsample_bytree", 0.6, 1.0),
-        "gamma": trial.suggest_float("gamma", 0, 5),
-        "use_label_encoder": False,
-        "tree_method": "hist",
-        "random_state": 42,
+        'objective': 'multi:softmax',
+        'num_class': 3,
+        'eval_metric': 'mlogloss',
+        'n_estimators': trial.suggest_int('n_estimators', 100, 1000),
+        'max_depth': trial.suggest_int('max_depth', 3, 10),
+        'learning_rate': trial.suggest_float('learning_rate', 0.01, 0.3, log=True),
+        'subsample': trial.suggest_float('subsample', 0.6, 1.0),
+        'colsample_bytree': trial.suggest_float('colsample_bytree', 0.6, 1.0),
+        'gamma': trial.suggest_float('gamma', 0, 5),
+        'tree_method': 'hist',
+        'random_state': 42,
     }
 
     logger.info(f"Trial {trial.number}: Starting")
     scores = []
     for i, (train_idx, val_idx) in enumerate(cv_splits):
-        logger.info(f"Trial {trial.number}: Processing fold {i+1}/{len(cv_splits)}")
         X_train, X_val = X.iloc[train_idx], X.iloc[val_idx]
         y_train, y_val = y.iloc[train_idx], y.iloc[val_idx]
+<<<<<<< HEAD
         trade_data_val = trade_data.iloc[val_idx].join(X_val['side'])
+=======
+>>>>>>> 62ce9b2e17fee7f24ee56398ea656e5178723856
 
-        y_pred_proba_fold = pd.DataFrame(index=X_val.index)
+        # Map labels from {-1, 0, 1} to {0, 1, 2} for XGBoost
+        y_train_mapped = y_train.map({-1: 0, 0: 1, 1: 2})
+        y_val_mapped = y_val.map({-1: 0, 0: 1, 1: 2})
 
-        # Fit a classifier per target label (multi-label)
-        for j, label in enumerate(y.columns):
-            y_train_label = y_train.iloc[:, j]
-            y_val_label = y_val.iloc[:, j]
+        model = xgb.XGBClassifier(**params)
+        model.fit(X_train, y_train_mapped, eval_set=[(X_val, y_val_mapped)], early_stopping_rounds=10, verbose=False)
 
+<<<<<<< HEAD
             if y_train_label.nunique() < 2:
                 continue
+=======
+        preds = model.predict(X_val)
+        # Map predictions back to original labels for scoring
+        preds_mapped_back = pd.Series(preds).map({0: -1, 1: 0, 2: 1}).values
+>>>>>>> 62ce9b2e17fee7f24ee56398ea656e5178723856
 
-            estimator = xgb.XGBClassifier(**params, early_stopping_rounds=10)
-            estimator.fit(
-                X_train, y_train_label, eval_set=[(X_val, y_val_label)], verbose=False
-            )
+        score = f1_score(y_val, preds_mapped_back, average='weighted')
+        scores.append(score)
+        logger.info(f"Trial {trial.number}, Fold {i+1}: F1-Score = {score:.4f}")
 
+<<<<<<< HEAD
             if (
                 hasattr(estimator, "classes_")
                 and len(estimator.classes_) > 1
@@ -134,6 +144,10 @@ def objective(
 
     mean_score = float(np.mean(scores)) if scores else -1.0
     logger.info(f"Trial {trial.number}: Finished with mean score = {mean_score}")
+=======
+    mean_score = float(np.mean(scores)) if scores else 0.0
+    logger.info(f"Trial {trial.number}: Finished with mean F1-score = {mean_score:.4f}")
+>>>>>>> 62ce9b2e17fee7f24ee56398ea656e5178723856
     return mean_score
 
 

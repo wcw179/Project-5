@@ -62,14 +62,104 @@ def main():
     # 3. Generate and Save Global Feature Importance Plot
     logger.info("Generating global feature importance plot...")
     plt.figure()
+<<<<<<< HEAD
     class_names = ["Short", "Neutral", "Long"] # Corresponds to {-1, 0, 1} mapped to {0, 1, 2}
     shap.summary_plot(shap_explanation.values, X_sample, plot_type="bar", show=False, class_names=class_names)
+=======
+    # For bar plots, we pass the shap_values component of the explanation object
+    shap.summary_plot(shap_explanation.values, X_sample, plot_type="bar", show=False, class_names=["Short", "Neutral", "Long"])
+>>>>>>> 62ce9b2e17fee7f24ee56398ea656e5178723856
     plot_path = REPORTS_DIR / "shap_global_feature_importance.png"
     plt.savefig(plot_path, bbox_inches='tight')
     plt.close()
     logger.success(f"Saved global feature importance plot to {plot_path}")
 
+<<<<<<< HEAD
     logger.info("--- SHAP Analysis Finished ---")
+=======
+    # 4. Generate and Save Local Prediction Explanations (Waterfall Plots)
+    logger.info("Generating local prediction explanation plots...")
+    class_names = {0: "Short", 1: "Neutral", 2: "Long"}
+
+    # Explain the first 3 predictions in the sample
+    for i in range(3):
+        for class_idx, class_name in class_names.items():
+            plt.figure()
+            # The new API makes slicing for plots much simpler and more robust
+            shap.waterfall_plot(shap_explanation[i, :, class_idx], show=False)
+            plt.title(f"SHAP Waterfall for Prediction {i} - Class: {class_name}")
+            local_plot_path = REPORTS_DIR / f"shap_waterfall_pred_{i}_class_{class_name}.png"
+            plt.savefig(local_plot_path, bbox_inches='tight')
+            plt.close()
+            logger.success(f"Saved waterfall plot to {local_plot_path}")
+
+
+    # 5. Generate and Save Feature Interaction Plots (Dependence Plots)
+    logger.info("Generating feature interaction dependence plots...")
+
+    # First, find the top 5 most important features globally
+    # We average the mean absolute SHAP values across all classes
+    global_shap_values = np.abs(shap_explanation.values).mean(axis=0)
+    feature_importances = pd.DataFrame(
+        list(zip(X_sample.columns, global_shap_values.sum(axis=1))),
+        columns=['feature_name', 'importance']
+    ).sort_values(by='importance', ascending=False)
+
+    top_features = feature_importances['feature_name'].head(5).tolist()
+
+    for feature in top_features:
+        for class_idx, class_name in class_names.items():
+            plt.figure()
+            # Use the legacy API for dependence_plot for more stability
+            shap.dependence_plot(
+                feature,
+                shap_explanation.values[:, :, class_idx],
+                X_sample,
+                show=False
+            )
+            plt.title(f"SHAP Dependence Plot for '{feature}' - Class: {class_name}")
+            interaction_plot_path = REPORTS_DIR / f"shap_dependence_{feature}_class_{class_name}.png"
+            plt.savefig(interaction_plot_path, bbox_inches='tight')
+            logger.success(f"Saved dependence plot to {interaction_plot_path}")
+            plt.close()
+
+    # 6. Perform and Save Global Importance Analysis from Data
+    logger.info("Calculating and saving global feature importance...")
+
+    # Calculate mean absolute SHAP value for each feature across all classes
+    shap_values_all_classes = shap_explanation.values
+    mean_abs_shap = np.abs(shap_values_all_classes).mean(axis=(0, 2))
+
+    feature_importance_df = pd.DataFrame({
+        'feature': X_sample.columns,
+        'mean_abs_shap': mean_abs_shap
+    }).sort_values(by='mean_abs_shap', ascending=False)
+
+    importance_path = REPORTS_DIR / "global_feature_importance.csv"
+    feature_importance_df.to_csv(importance_path, index=False)
+    logger.success(f"Saved global feature importance data to {importance_path}")
+    logger.info("--- Top 10 Most Important Features ---")
+    logger.info(f"\n{feature_importance_df.head(10).to_string()}")
+
+    # 7. Export SHAP Values to CSV
+    logger.info("Exporting SHAP values for the sample to CSV...")
+
+    # Create a DataFrame for each class's SHAP values
+    shap_dfs = []
+    for i, name in class_names.items():
+        df = pd.DataFrame(shap_explanation.values[:, :, i], columns=[f"{col}_shap_{name}" for col in X_sample.columns], index=X_sample.index)
+        shap_dfs.append(df)
+
+    # Concatenate all SHAP value DataFrames
+    shap_df_combined = pd.concat(shap_dfs, axis=1)
+
+    # Join with the original feature values
+    export_df = X_sample.join(shap_df_combined)
+
+    export_path = REPORTS_DIR / "shap_values_sample.csv"
+    export_df.to_csv(export_path)
+    logger.success(f"Saved SHAP values sample to {export_path}")
+>>>>>>> 62ce9b2e17fee7f24ee56398ea656e5178723856
 
 
 
