@@ -118,7 +118,11 @@ def build_dataset() -> tuple[pd.DataFrame, pd.Series, pd.DataFrame]:
     return X, y, sample_info
 
 def main():
+<<<<<<< HEAD
     """Runs the data generation and saves multiple samples for verification."""
+=======
+    """Runs the data generation and saves a sample for verification."""
+>>>>>>> 62ce9b2e17fee7f24ee56398ea656e5178723856
     logger.info("--- Starting Final Training Dataset Creation (Standalone Run) ---")
     X, y, _ = build_dataset()
 
@@ -126,6 +130,7 @@ def main():
         logger.error("Pipeline finished with no data.")
         return
 
+<<<<<<< HEAD
     # Create reports directory if it doesn't exist
     reports_dir = project_root / "reports"
     reports_dir.mkdir(exist_ok=True)
@@ -153,6 +158,21 @@ def main():
     logger.info(f"- Features: {features_path}")
     logger.info(f"- Labels: {labels_path}")
     logger.info(f"- Combined: {combined_path}")
+=======
+    # Combine for saving sample
+    final_df = X.copy()
+    final_df['label'] = y
+
+    # 5. Save Sample
+    sample_size = min(100, len(final_df))
+    result_sample = final_df.sample(n=sample_size, random_state=42)
+
+    output_path = project_root / "reports" / "final_training_sample.csv"
+    result_sample.to_csv(output_path)
+    logger.success(f"Saved a random sample of {sample_size} results to {output_path}")
+    logger.info("--- Final Sample Head ---")
+    logger.info(f"\n{result_sample.head()}")
+>>>>>>> 62ce9b2e17fee7f24ee56398ea656e5178723856
 
 if __name__ == "__main__":
     main()
