@@ -26,7 +26,7 @@ try:
 except ImportError:
     logger.warning("mlfinpy not found, trying alternative import")
     try:
-        from scripts.purged_cross_validation import PurgedKFold
+        from Scripts.purged_cross_validation import PurgedKFold
     except ImportError:
         logger.error("PurgedKFold not found in any expected location")
         sys.exit(1)
