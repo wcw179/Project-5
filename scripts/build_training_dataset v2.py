@@ -25,7 +25,7 @@ from mlfinpy.util import get_daily_vol
 DB_PATH = project_root / "data" / "m5_trading.db"
 
 START_DATE = "2023-01-01"
-END_DATE = "2025-08-31"
+END_DATE = "2025-09-05"
 
 def build_dataset(symbol: str) -> tuple[pd.DataFrame, pd.Series, pd.DataFrame]:
     """
@@ -69,7 +69,7 @@ def build_dataset(symbol: str) -> tuple[pd.DataFrame, pd.Series, pd.DataFrame]:
     vol = get_daily_vol(close, lookback=50).ffill().bfill()
     vertical_barriers = add_vertical_barrier(t_events=t_events, close=close, num_days=5)
 
-    pt_sl = [15.0, 1.5]
+    pt_sl = [20.0, 1.5]
     long_events = side[side == 1].index
     short_events = side[side == -1].index
 
@@ -117,41 +117,54 @@ def build_dataset(symbol: str) -> tuple[pd.DataFrame, pd.Series, pd.DataFrame]:
     return X, y, sample_info
 
 def main():
-    """Runs the data generation and saves multiple samples for verification."""
-    logger.info("--- Starting Final Training Dataset Creation (Standalone Run) ---")
-    X, y, _ = build_dataset(symbol="EURUSDm")
+    """Runs the data generation for a list of symbols and saves the full dataset."""
+    logger.info("--- Starting Full Dataset Creation (Multi-Symbol) ---")
 
-    if X.empty:
-        logger.error("Pipeline finished with no data.")
+    symbols = ["EURUSDm", "GBPUSDm", "USDJPYm", "AUDUSDm", "XAUUSDm"]
+    all_X = []
+    all_y = []
+    all_sample_info = []
+
+    for sym in symbols:
+        X, y, sample_info = build_dataset(symbol=sym)
+        if not X.empty:
+            all_X.append(X)
+            all_y.append(y)
+            all_sample_info.append(sample_info)
+
+    if not all_X:
+        logger.error("Pipeline finished with no data for any symbol.")
         return
 
-    # Create reports directory if it doesn't exist
-    reports_dir = project_root / "reports"
-    reports_dir.mkdir(exist_ok=True)
+    # Combine all dataframes
+    X_full = pd.concat(all_X)
+    y_full = pd.concat(all_y)
+    sample_info_full = pd.concat(all_sample_info)
 
-    # 5. Create and Save Samples
-    sample_size = min(100, len(X))
-    random_indices = X.sample(n=sample_size, random_state=42).index
+    # --- Imbalance Handling ---
+    logger.info("Checking for label imbalance...")
+    label_counts = y_full.value_counts()
+    logger.info(f"Label distribution:\n{label_counts}")
+    imbalance_ratio = label_counts.min() / label_counts.max()
+    if imbalance_ratio < 0.5:
+        logger.warning(f"Significant label imbalance detected! Ratio: {imbalance_ratio:.2f}")
 
-    X_sample = X.loc[random_indices]
-    y_sample = y.loc[random_indices]
-    combined_sample = X_sample.copy()
-    combined_sample['label'] = y_sample
+    # --- Saving Final Dataset ---
+    data_dir = project_root / "data" / "processed"
+    data_dir.mkdir(exist_ok=True)
 
-    # Define paths
-    features_path = reports_dir / "features_sample.csv"
-    labels_path = reports_dir / "labels_sample.csv"
-    combined_path = reports_dir / "combined_sample.csv"
+    X_full_path = data_dir / "X_full.parquet"
+    y_full_path = data_dir / "y_full.parquet"
+    sample_info_path = data_dir / "sample_info_full.parquet"
 
-    # Save files
-    X_sample.to_csv(features_path)
-    y_sample.to_csv(labels_path, header=True)
-    combined_sample.to_csv(combined_path)
+    X_full.to_parquet(X_full_path)
+    y_full.to_parquet(y_full_path)
+    sample_info_full.to_parquet(sample_info_path)
 
-    logger.success(f"Saved {sample_size} random samples to the 'reports' directory:")
-    logger.info(f"- Features: {features_path}")
-    logger.info(f"- Labels: {labels_path}")
-    logger.info(f"- Combined: {combined_path}")
+    logger.success("Full dataset saved successfully in Parquet format:")
+    logger.info(f"- Features: {X_full_path}")
+    logger.info(f"- Labels: {y_full_path}")
+    logger.info(f"- Sample Info: {sample_info_path}")
 
 if __name__ == "__main__":
     main()
