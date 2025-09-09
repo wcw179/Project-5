@@ -62,13 +62,21 @@ def main():
     # 3. Generate and Save Global Feature Importance Plot
     logger.info("Generating global feature importance plot...")
     plt.figure()
+<<<<<<< HEAD
+    class_names = ["Short", "Neutral", "Long"] # Corresponds to {-1, 0, 1} mapped to {0, 1, 2}
+    shap.summary_plot(shap_explanation.values, X_sample, plot_type="bar", show=False, class_names=class_names)
+=======
     # For bar plots, we pass the shap_values component of the explanation object
     shap.summary_plot(shap_explanation.values, X_sample, plot_type="bar", show=False, class_names=["Short", "Neutral", "Long"])
+>>>>>>> 62ce9b2e17fee7f24ee56398ea656e5178723856
     plot_path = REPORTS_DIR / "shap_global_feature_importance.png"
     plt.savefig(plot_path, bbox_inches='tight')
     plt.close()
     logger.success(f"Saved global feature importance plot to {plot_path}")
 
+<<<<<<< HEAD
+    logger.info("--- SHAP Analysis Finished ---")
+=======
     # 4. Generate and Save Local Prediction Explanations (Waterfall Plots)
     logger.info("Generating local prediction explanation plots...")
     class_names = {0: "Short", 1: "Neutral", 2: "Long"}
@@ -151,6 +159,7 @@ def main():
     export_path = REPORTS_DIR / "shap_values_sample.csv"
     export_df.to_csv(export_path)
     logger.success(f"Saved SHAP values sample to {export_path}")
+>>>>>>> 62ce9b2e17fee7f24ee56398ea656e5178723856
 
 
 

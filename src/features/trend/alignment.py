@@ -36,6 +36,14 @@ def add_trend_features(df: pd.DataFrame) -> pd.DataFrame:
     df["ema50_h4"] = ema50_h4.reindex(df.index, method="ffill")
 
     # EMA Alignment Features
+    df["ema_algnment"] = (
+        (df["ema_20"] > df["ema_50"]) & (df["ema_50"] > df["ema_200"])
+    ).astype(int) - (
+        (df["ema_20"] < df["ema_50"]) & (df["ema_50"] < df["ema_200"])
+    ).astype(
+        int
+    )
+
     df["ema_alignment_h1"] = (
         (df["ema20_h1"] > df["ema50_h1"]) & (df["ema50_h1"] > df["ema200_h1"])
     ).astype(int) - (

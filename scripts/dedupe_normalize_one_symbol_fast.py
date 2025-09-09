@@ -81,7 +81,7 @@ def main():
             CREATE TEMP TABLE __keep_rows__ AS
             SELECT '{symbol}' AS symbol,
                    w.nt AS time,
-                   b.open, b.high, b.low, b.close, b.volume
+                   b.open, b.high, b.low, b.close, b.volume, b.spread
             FROM bars b
             JOIN __winners_fast__ w ON w.rid = b.rowid;
             """
@@ -93,8 +93,8 @@ def main():
         # 4) Insert back the cleaned rows
         cur.execute(
             """
-            INSERT INTO bars(symbol, time, open, high, low, close, volume)
-            SELECT symbol, time, open, high, low, close, volume
+            INSERT INTO bars(symbol, time, open, high, low, close, volume, spread)
+            SELECT symbol, time, open, high, low, close, volume, spread
             FROM __keep_rows__
             """
         )

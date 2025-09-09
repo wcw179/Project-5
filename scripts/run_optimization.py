@@ -22,6 +22,12 @@ from src.features.pipeline import create_all_features
 from src.labeling.trend_scanning_labeling import generate_true_labels
 from sklearn.model_selection import TimeSeriesSplit
 from sklearn.metrics import f1_score
+<<<<<<< HEAD
+from src.labeling.trend_scanning_labeling import generate_trend_scanning_meta_labels as generate_primary_labels
+from mlfinpy.cross_validation.cross_validation import PurgedKFold
+from src.modeling.optimization import financial_objective_function
+=======
+>>>>>>> 62ce9b2e17fee7f24ee56398ea656e5178723856
 
 # --- Logger Configuration ---
 log_file_path = project_root / "logs" / "optimization.log"
@@ -96,6 +102,10 @@ def objective(
     for i, (train_idx, val_idx) in enumerate(cv_splits):
         X_train, X_val = X.iloc[train_idx], X.iloc[val_idx]
         y_train, y_val = y.iloc[train_idx], y.iloc[val_idx]
+<<<<<<< HEAD
+        trade_data_val = trade_data.iloc[val_idx].join(X_val['side'])
+=======
+>>>>>>> 62ce9b2e17fee7f24ee56398ea656e5178723856
 
         # Map labels from {-1, 0, 1} to {0, 1, 2} for XGBoost
         y_train_mapped = y_train.map({-1: 0, 0: 1, 1: 2})
@@ -104,16 +114,40 @@ def objective(
         model = xgb.XGBClassifier(**params)
         model.fit(X_train, y_train_mapped, eval_set=[(X_val, y_val_mapped)], early_stopping_rounds=10, verbose=False)
 
+<<<<<<< HEAD
+            if y_train_label.nunique() < 2:
+                continue
+=======
         preds = model.predict(X_val)
         # Map predictions back to original labels for scoring
         preds_mapped_back = pd.Series(preds).map({0: -1, 1: 0, 2: 1}).values
+>>>>>>> 62ce9b2e17fee7f24ee56398ea656e5178723856
 
         score = f1_score(y_val, preds_mapped_back, average='weighted')
         scores.append(score)
         logger.info(f"Trial {trial.number}, Fold {i+1}: F1-Score = {score:.4f}")
 
+<<<<<<< HEAD
+            if (
+                hasattr(estimator, "classes_")
+                and len(estimator.classes_) > 1
+                and estimator.classes_[1] == 1
+            ):
+                y_pred_proba_fold[label] = estimator.predict_proba(X_val)[:, 1]
+            else:
+                y_pred_proba_fold[label] = 0.0
+
+        if not y_pred_proba_fold.empty:
+            score = financial_objective_function(trial, y_pred_proba_fold, trade_data_val)
+            scores.append(score)
+            logger.info(f"Trial {trial.number}, Fold {i+1}: Score = {score}")
+
+    mean_score = float(np.mean(scores)) if scores else -1.0
+    logger.info(f"Trial {trial.number}: Finished with mean score = {mean_score}")
+=======
     mean_score = float(np.mean(scores)) if scores else 0.0
     logger.info(f"Trial {trial.number}: Finished with mean F1-score = {mean_score:.4f}")
+>>>>>>> 62ce9b2e17fee7f24ee56398ea656e5178723856
     return mean_score
 
 
