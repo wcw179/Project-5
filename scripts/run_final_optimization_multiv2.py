@@ -18,6 +18,7 @@ import numpy as np
 import optuna
 import pandas as pd
 import xgboost as xgb
+<<<<<<< HEAD
 from sklearn.model_selection._split import _BaseKFold
 class PurgedKFold(_BaseKFold):
     """
@@ -63,6 +64,11 @@ import gc
 from loguru import logger
 from sklearn.metrics import f1_score, classification_report, accuracy_score
 from sklearn.utils.class_weight import compute_sample_weight
+=======
+import gc
+from loguru import logger
+from sklearn.metrics import f1_score, classification_report, accuracy_score
+>>>>>>> 53fc66ea5e1c22b428fad1cd0ddbd7b6e2d3da17
 from typing import Dict, List, Tuple, Any, Optional
 import warnings
 warnings.filterwarnings('ignore')
@@ -116,22 +122,37 @@ def calculate_returns_proxy(y_true: np.array, y_pred: np.array) -> np.array:
     """
     # Assume y_true represents market direction, convert to return proxy
     returns_proxy = np.where(y_true == 1, 0.001,   # Up: small positive return
+<<<<<<< HEAD
                             np.where(y_true == -1, -0.001,  # Down: small negative return
                                     0.0))  # Neutral: no return
 
+=======
+                            np.where(y_true == -1, -0.001,  # Down: small negative return  
+                                    0.0))  # Neutral: no return
+    
+>>>>>>> 53fc66ea5e1c22b428fad1cd0ddbd7b6e2d3da17
     # Strategy returns = position * market return
     positions = np.where(y_pred == 1, 1.0,    # Long position
                         np.where(y_pred == -1, -1.0,  # Short position
                                 0.0))  # No position
+<<<<<<< HEAD
 
     return positions * returns_proxy
 
 
 def evaluate_predictions(y_true: np.array, y_pred: np.array,
+=======
+    
+    return positions * returns_proxy
+
+
+def evaluate_predictions(y_true: np.array, y_pred: np.array, 
+>>>>>>> 53fc66ea5e1c22b428fad1cd0ddbd7b6e2d3da17
                         sample_weight: Optional[np.array] = None) -> Dict[str, float]:
     """Calculate comprehensive evaluation metrics"""
     if sample_weight is None:
         sample_weight = np.ones_like(y_true)
+<<<<<<< HEAD
 
     metrics = {}
 
@@ -139,6 +160,15 @@ def evaluate_predictions(y_true: np.array, y_pred: np.array,
     metrics['f1_weighted'] = f1_score(y_true, y_pred, sample_weight=sample_weight, average='weighted')
     metrics['accuracy'] = accuracy_score(y_true, y_pred, sample_weight=sample_weight)
 
+=======
+    
+    metrics = {}
+    
+    # Classification metrics
+    metrics['f1_weighted'] = f1_score(y_true, y_pred, sample_weight=sample_weight, average='weighted')
+    metrics['accuracy'] = accuracy_score(y_true, y_pred, sample_weight=sample_weight)
+    
+>>>>>>> 53fc66ea5e1c22b428fad1cd0ddbd7b6e2d3da17
     # Trading-specific metrics
     try:
         strategy_returns = calculate_returns_proxy(y_true, y_pred)
@@ -149,6 +179,7 @@ def evaluate_predictions(y_true: np.array, y_pred: np.array,
     except Exception as e:
         logger.warning(f"Sharpe calculation failed: {e}")
         metrics['sharpe'] = 0.0
+<<<<<<< HEAD
 
     # Combined metric (30% accuracy + 70% normalized Sharpe)
     normalized_sharpe = max(0, min(1, (metrics['sharpe'] + 1) / 4))
@@ -158,6 +189,17 @@ def evaluate_predictions(y_true: np.array, y_pred: np.array,
 
 
 def objective(trial: optuna.trial.Trial, X: pd.DataFrame, y: pd.Series,
+=======
+    
+    # Combined metric (30% accuracy + 70% normalized Sharpe)
+    normalized_sharpe = max(0, min(1, (metrics['sharpe'] + 1) / 4))
+    metrics['combined'] = 0.3 * metrics['accuracy'] + 0.7 * normalized_sharpe
+    
+    return metrics
+
+
+def objective(trial: optuna.trial.Trial, X: pd.DataFrame, y: pd.Series, 
+>>>>>>> 53fc66ea5e1c22b428fad1cd0ddbd7b6e2d3da17
               cv_splits: List[Tuple[np.array, np.array]]) -> float:
     """Enhanced Optuna objective function with comprehensive evaluation."""
     try:
@@ -174,8 +216,13 @@ def objective(trial: optuna.trial.Trial, X: pd.DataFrame, y: pd.Series,
             'colsample_bylevel': trial.suggest_float('colsample_bylevel', 0.6, 1.0),
             'colsample_bynode': trial.suggest_float('colsample_bynode', 0.6, 1.0),
             'gamma': trial.suggest_float('gamma', 0, 5),
+<<<<<<< HEAD
             'reg_alpha': trial.suggest_float('reg_alpha', 1e-8, 2.0, log=True),
             'reg_lambda': trial.suggest_float('reg_lambda', 1e-8, 2.0, log=True),
+=======
+            'reg_alpha': trial.suggest_float('reg_alpha', 0, 2, log=True),
+            'reg_lambda': trial.suggest_float('reg_lambda', 0, 2, log=True),
+>>>>>>> 53fc66ea5e1c22b428fad1cd0ddbd7b6e2d3da17
             'min_child_weight': trial.suggest_int('min_child_weight', 1, 10),
             'tree_method': 'hist',
             'random_state': CONFIG['random_state'],
@@ -183,10 +230,17 @@ def objective(trial: optuna.trial.Trial, X: pd.DataFrame, y: pd.Series,
         }
 
         logger.info(f"Trial {trial.number}: Starting with enhanced params")
+<<<<<<< HEAD
 
         fold_metrics = {metric: [] for metric in CONFIG['evaluation_metrics']}
         valid_folds = 0
 
+=======
+        
+        fold_metrics = {metric: [] for metric in CONFIG['evaluation_metrics']}
+        valid_folds = 0
+        
+>>>>>>> 53fc66ea5e1c22b428fad1cd0ddbd7b6e2d3da17
         for fold, (train_idx, val_idx) in enumerate(cv_splits):
             try:
                 # Data preparation
@@ -203,6 +257,7 @@ def objective(trial: optuna.trial.Trial, X: pd.DataFrame, y: pd.Series,
                     continue
 
                 # Model training with enhanced early stopping
+<<<<<<< HEAD
                 # Calculate class weights to counteract imbalance
                 sample_weights = compute_sample_weight(
                     class_weight='balanced',
@@ -213,6 +268,11 @@ def objective(trial: optuna.trial.Trial, X: pd.DataFrame, y: pd.Series,
                 model.fit(
                     X_train, y_train_mapped,
                     sample_weight=sample_weights,
+=======
+                model = xgb.XGBClassifier(**params)
+                model.fit(
+                    X_train, y_train_mapped,
+>>>>>>> 53fc66ea5e1c22b428fad1cd0ddbd7b6e2d3da17
                     eval_set=[(X_val, y_val_mapped)],
                     early_stopping_rounds=CONFIG['xgb_early_stopping'],
                     verbose=False
@@ -225,12 +285,20 @@ def objective(trial: optuna.trial.Trial, X: pd.DataFrame, y: pd.Series,
 
                 # Calculate all metrics
                 metrics = evaluate_predictions(y_val.values, preds_mapped_back)
+<<<<<<< HEAD
 
+=======
+                
+>>>>>>> 53fc66ea5e1c22b428fad1cd0ddbd7b6e2d3da17
                 for metric_name, score in metrics.items():
                     fold_metrics[metric_name].append(score)
 
                 valid_folds += 1
+<<<<<<< HEAD
 
+=======
+                
+>>>>>>> 53fc66ea5e1c22b428fad1cd0ddbd7b6e2d3da17
                 # Memory cleanup
                 del model, preds, preds_mapped_back
                 gc.collect()
@@ -245,14 +313,22 @@ def objective(trial: optuna.trial.Trial, X: pd.DataFrame, y: pd.Series,
 
         # Calculate mean scores and log comprehensive results
         mean_scores = {metric: np.mean(scores) for metric, scores in fold_metrics.items()}
+<<<<<<< HEAD
 
+=======
+        
+>>>>>>> 53fc66ea5e1c22b428fad1cd0ddbd7b6e2d3da17
         logger.info(f"Trial {trial.number} Results ({valid_folds}/{len(cv_splits)} folds):")
         for metric, score in mean_scores.items():
             logger.info(f"  {metric}: {score:.4f}")
 
         # Return primary metric for optimization
         primary_score = mean_scores.get(CONFIG['primary_metric'], -1.0)
+<<<<<<< HEAD
 
+=======
+        
+>>>>>>> 53fc66ea5e1c22b428fad1cd0ddbd7b6e2d3da17
         # Store additional metrics in trial user attributes
         for metric, score in mean_scores.items():
             trial.set_user_attr(f"mean_{metric}", score)
@@ -267,15 +343,24 @@ def objective(trial: optuna.trial.Trial, X: pd.DataFrame, y: pd.Series,
         return -1.0
 
 
+<<<<<<< HEAD
 def create_stratified_cv_splits(X: pd.DataFrame, y: pd.Series,
                                sample_info: pd.DataFrame) -> List[Tuple[np.array, np.array]]:
     """Create stratified CV splits with proper purging"""
     logger.info("Creating stratified CV splits with purging...")
 
+=======
+def create_stratified_cv_splits(X: pd.DataFrame, y: pd.Series, 
+                               sample_info: pd.DataFrame) -> List[Tuple[np.array, np.array]]:
+    """Create stratified CV splits with proper purging"""
+    logger.info("Creating stratified CV splits with purging...")
+    
+>>>>>>> 53fc66ea5e1c22b428fad1cd0ddbd7b6e2d3da17
     # Align indices
     common_idx = X.index.intersection(sample_info.index)
     if len(common_idx) == 0:
         raise ValueError("No common indices between X and sample_info")
+<<<<<<< HEAD
 
     X_aligned = X.loc[common_idx]
     y_aligned = y.loc[common_idx]
@@ -293,19 +378,43 @@ def create_stratified_cv_splits(X: pd.DataFrame, y: pd.Series,
 
     cv_splits = list(cv.split(X_aligned, y_aligned))
 
+=======
+    
+    X_aligned = X.loc[common_idx]
+    y_aligned = y.loc[common_idx]
+    t1_aligned = sample_info.loc[common_idx, 't1']
+    
+    logger.info(f"Aligned data: {len(X_aligned)} samples")
+    
+    # Create enhanced CV with stratification
+    cv = PurgedStratifiedKFold(
+        n_splits=CONFIG['n_splits'], 
+        samples_info_sets=t1_aligned, 
+        pct_embargo=CONFIG['pct_embargo'],
+        min_samples_per_class=CONFIG['min_samples_per_class']
+    )
+    
+    cv_splits = list(cv.split(X_aligned, y_aligned))
+    
+>>>>>>> 53fc66ea5e1c22b428fad1cd0ddbd7b6e2d3da17
     # Log class distribution per fold
     logger.info("Class distribution per fold:")
     for fold, (train_idx, val_idx) in enumerate(cv_splits):
         train_dist = y_aligned.iloc[train_idx].value_counts().sort_index()
         val_dist = y_aligned.iloc[val_idx].value_counts().sort_index()
         logger.info(f"  Fold {fold}: Train {train_dist.to_dict()}, Val {val_dist.to_dict()}")
+<<<<<<< HEAD
 
+=======
+    
+>>>>>>> 53fc66ea5e1c22b428fad1cd0ddbd7b6e2d3da17
     return cv_splits, X_aligned, y_aligned
 
 
 def save_comprehensive_results(study: optuna.study.Study, model_dir: Path):
     """Save comprehensive optimization results with enhanced analysis"""
     logger.info("Saving comprehensive optimization results...")
+<<<<<<< HEAD
 
     # Save study object
     joblib.dump(study, model_dir / "enhanced_optimization_study.pkl")
@@ -313,12 +422,22 @@ def save_comprehensive_results(study: optuna.study.Study, model_dir: Path):
     # Enhanced trials dataframe with user attributes
     trials_df = study.trials_dataframe()
 
+=======
+    
+    # Save study object
+    joblib.dump(study, model_dir / "enhanced_optimization_study.pkl")
+    
+    # Enhanced trials dataframe with user attributes
+    trials_df = study.trials_dataframe()
+    
+>>>>>>> 53fc66ea5e1c22b428fad1cd0ddbd7b6e2d3da17
     # Add user attributes to dataframe
     user_attrs_df = []
     for trial in study.trials:
         attrs = trial.user_attrs.copy()
         attrs['trial_number'] = trial.number
         user_attrs_df.append(attrs)
+<<<<<<< HEAD
 
     if user_attrs_df:
         user_attrs_df = pd.DataFrame(user_attrs_df)
@@ -326,6 +445,15 @@ def save_comprehensive_results(study: optuna.study.Study, model_dir: Path):
 
     trials_df.to_csv(model_dir / "enhanced_optimization_trials.csv", index=False)
 
+=======
+    
+    if user_attrs_df:
+        user_attrs_df = pd.DataFrame(user_attrs_df)
+        trials_df = trials_df.merge(user_attrs_df, left_on='number', right_on='trial_number', how='left')
+    
+    trials_df.to_csv(model_dir / "enhanced_optimization_trials.csv", index=False)
+    
+>>>>>>> 53fc66ea5e1c22b428fad1cd0ddbd7b6e2d3da17
     # Save best trial comprehensive results
     best_trial_results = {
         'best_value': study.best_value,
@@ -335,6 +463,7 @@ def save_comprehensive_results(study: optuna.study.Study, model_dir: Path):
         'optimization_config': CONFIG,
         'n_completed_trials': len([t for t in study.trials if t.state == optuna.trial.TrialState.COMPLETE])
     }
+<<<<<<< HEAD
 
     with open(model_dir / "enhanced_best_trial_results.json", "w") as f:
         json.dump(best_trial_results, f, indent=4, default=str)
@@ -357,15 +486,47 @@ def save_comprehensive_results(study: optuna.study.Study, model_dir: Path):
 
         logger.info("Visualization plots saved successfully")
 
+=======
+    
+    with open(model_dir / "enhanced_best_trial_results.json", "w") as f:
+        json.dump(best_trial_results, f, indent=4, default=str)
+    
+    # Visualization (if available)
+    try:
+        import optuna.visualization as vis
+        
+        # Optimization history
+        fig = vis.plot_optimization_history(study)
+        fig.write_html(str(model_dir / "enhanced_optimization_history.html"))
+        
+        # Parameter importance
+        fig = vis.plot_param_importances(study)
+        fig.write_html(str(model_dir / "enhanced_param_importance.html"))
+        
+        # Hyperparameter relationships
+        fig = vis.plot_parallel_coordinate(study)
+        fig.write_html(str(model_dir / "enhanced_parallel_coordinate.html"))
+        
+        logger.info("Visualization plots saved successfully")
+        
+>>>>>>> 53fc66ea5e1c22b428fad1cd0ddbd7b6e2d3da17
     except ImportError:
         logger.warning("Optuna visualization not available. Install plotly for visualizations.")
 
 
+<<<<<<< HEAD
 def final_model_validation(study: optuna.study.Study, X: pd.DataFrame, y: pd.Series,
                           cv_splits: List[Tuple[np.array, np.array]]) -> Dict[str, Any]:
     """Comprehensive final model validation with all metrics"""
     logger.info("=== Starting Comprehensive Final Model Validation ===")
 
+=======
+def final_model_validation(study: optuna.study.Study, X: pd.DataFrame, y: pd.Series, 
+                          cv_splits: List[Tuple[np.array, np.array]]) -> Dict[str, Any]:
+    """Comprehensive final model validation with all metrics"""
+    logger.info("=== Starting Comprehensive Final Model Validation ===")
+    
+>>>>>>> 53fc66ea5e1c22b428fad1cd0ddbd7b6e2d3da17
     # Prepare best parameters
     best_params = study.best_params.copy()
     best_params.update({
@@ -376,16 +537,27 @@ def final_model_validation(study: optuna.study.Study, X: pd.DataFrame, y: pd.Ser
         'random_state': CONFIG['random_state'],
         'n_jobs': -1,
     })
+<<<<<<< HEAD
 
+=======
+    
+>>>>>>> 53fc66ea5e1c22b428fad1cd0ddbd7b6e2d3da17
     # Cross-validation results storage
     all_predictions = []
     all_true_labels = []
     fold_results = []
     saved_models = []
+<<<<<<< HEAD
 
     for fold, (train_idx, val_idx) in enumerate(cv_splits):
         logger.info(f"Validating fold {fold + 1}/{len(cv_splits)}")
 
+=======
+    
+    for fold, (train_idx, val_idx) in enumerate(cv_splits):
+        logger.info(f"Validating fold {fold + 1}/{len(cv_splits)}")
+        
+>>>>>>> 53fc66ea5e1c22b428fad1cd0ddbd7b6e2d3da17
         X_train, X_val = X.iloc[train_idx], X.iloc[val_idx]
         y_train, y_val = y.iloc[train_idx], y.iloc[val_idx]
 
@@ -393,6 +565,7 @@ def final_model_validation(study: optuna.study.Study, X: pd.DataFrame, y: pd.Ser
         y_train_mapped = y_train.map({-1: 0, 0: 1, 1: 2})
         y_val_mapped = y_val.map({-1: 0, 0: 1, 1: 2})
 
+<<<<<<< HEAD
         # Add robustness check for class diversity
         if len(np.unique(y_train_mapped)) < 2:
             logger.warning(f"Validation Fold {fold}: Insufficient class diversity. Skipping.")
@@ -407,6 +580,12 @@ def final_model_validation(study: optuna.study.Study, X: pd.DataFrame, y: pd.Ser
         model.fit(
             X_train, y_train_mapped,
             sample_weight=sample_weights,
+=======
+        # Train final model
+        model = xgb.XGBClassifier(**best_params)
+        model.fit(
+            X_train, y_train_mapped,
+>>>>>>> 53fc66ea5e1c22b428fad1cd0ddbd7b6e2d3da17
             eval_set=[(X_val, y_val_mapped)],
             early_stopping_rounds=CONFIG['xgb_early_stopping'],
             verbose=False
@@ -424,21 +603,37 @@ def final_model_validation(study: optuna.study.Study, X: pd.DataFrame, y: pd.Ser
         # Calculate fold metrics
         fold_metrics = evaluate_predictions(y_val.values, preds_mapped_back)
         fold_results.append(fold_metrics)
+<<<<<<< HEAD
 
+=======
+        
+>>>>>>> 53fc66ea5e1c22b428fad1cd0ddbd7b6e2d3da17
         # Save individual fold model
         model_path = MODEL_DIR / f"final_model_fold_{fold}.joblib"
         joblib.dump(model, model_path)
         saved_models.append(str(model_path))
+<<<<<<< HEAD
 
         logger.info(f"Fold {fold} metrics: " +
+=======
+        
+        logger.info(f"Fold {fold} metrics: " + 
+>>>>>>> 53fc66ea5e1c22b428fad1cd0ddbd7b6e2d3da17
                    ", ".join([f"{k}: {v:.4f}" for k, v in fold_metrics.items()]))
 
     # Aggregate results
     overall_metrics = evaluate_predictions(
+<<<<<<< HEAD
         np.array(all_true_labels),
         np.array(all_predictions)
     )
 
+=======
+        np.array(all_true_labels), 
+        np.array(all_predictions)
+    )
+    
+>>>>>>> 53fc66ea5e1c22b428fad1cd0ddbd7b6e2d3da17
     # Calculate cross-validation statistics
     cv_stats = {}
     for metric in CONFIG['evaluation_metrics']:
@@ -448,6 +643,7 @@ def final_model_validation(study: optuna.study.Study, X: pd.DataFrame, y: pd.Ser
             'std': np.std(scores),
             'scores': scores
         }
+<<<<<<< HEAD
 
     # Classification report
     class_report = classification_report(
@@ -455,10 +651,20 @@ def final_model_validation(study: optuna.study.Study, X: pd.DataFrame, y: pd.Ser
         output_dict=True, digits=4
     )
 
+=======
+    
+    # Classification report
+    class_report = classification_report(
+        all_true_labels, all_predictions, 
+        output_dict=True, digits=4
+    )
+    
+>>>>>>> 53fc66ea5e1c22b428fad1cd0ddbd7b6e2d3da17
     logger.info("=== Final Validation Results ===")
     logger.info("Overall Metrics:")
     for metric, score in overall_metrics.items():
         logger.info(f"  {metric}: {score:.4f}")
+<<<<<<< HEAD
 
     logger.info("\nCross-Validation Statistics:")
     for metric, stats in cv_stats.items():
@@ -466,6 +672,15 @@ def final_model_validation(study: optuna.study.Study, X: pd.DataFrame, y: pd.Ser
 
     logger.info(f"\nClassification Report:\n{classification_report(all_true_labels, all_predictions, digits=4)}")
 
+=======
+    
+    logger.info("\nCross-Validation Statistics:")
+    for metric, stats in cv_stats.items():
+        logger.info(f"  {metric}: {stats['mean']:.4f} ± {stats['std']:.4f}")
+    
+    logger.info(f"\nClassification Report:\n{classification_report(all_true_labels, all_predictions, digits=4)}")
+    
+>>>>>>> 53fc66ea5e1c22b428fad1cd0ddbd7b6e2d3da17
     return {
         'overall_metrics': overall_metrics,
         'cv_statistics': cv_stats,
@@ -476,11 +691,19 @@ def final_model_validation(study: optuna.study.Study, X: pd.DataFrame, y: pd.Ser
     }
 
 
+<<<<<<< HEAD
 def train_final_ensemble_model(X: pd.DataFrame, y: pd.Series,
                               best_params: Dict[str, Any]) -> str:
     """Train final ensemble model on full dataset"""
     logger.info("Training final ensemble model on full dataset...")
 
+=======
+def train_final_ensemble_model(X: pd.DataFrame, y: pd.Series, 
+                              best_params: Dict[str, Any]) -> str:
+    """Train final ensemble model on full dataset"""
+    logger.info("Training final ensemble model on full dataset...")
+    
+>>>>>>> 53fc66ea5e1c22b428fad1cd0ddbd7b6e2d3da17
     # Prepare final parameters
     final_params = best_params.copy()
     final_params.update({
@@ -491,6 +714,7 @@ def train_final_ensemble_model(X: pd.DataFrame, y: pd.Series,
         'random_state': CONFIG['random_state'],
         'n_jobs': -1,
     })
+<<<<<<< HEAD
 
     # Map labels
     y_mapped = y.map({-1: 0, 0: 1, 1: 2})
@@ -507,6 +731,20 @@ def train_final_ensemble_model(X: pd.DataFrame, y: pd.Series,
     final_model_path = MODEL_DIR / "enhanced_final_ensemble_model.joblib"
     joblib.dump(final_model, final_model_path)
 
+=======
+    
+    # Map labels
+    y_mapped = y.map({-1: 0, 0: 1, 1: 2})
+    
+    # Train on full dataset
+    final_model = xgb.XGBClassifier(**final_params)
+    final_model.fit(X, y_mapped)
+    
+    # Save final model
+    final_model_path = MODEL_DIR / "enhanced_final_ensemble_model.joblib"
+    joblib.dump(final_model, final_model_path)
+    
+>>>>>>> 53fc66ea5e1c22b428fad1cd0ddbd7b6e2d3da17
     logger.success(f"Final ensemble model saved to: {final_model_path}")
     return str(final_model_path)
 
@@ -518,7 +756,11 @@ def main():
 
     # Prepare directories
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
+<<<<<<< HEAD
 
+=======
+    
+>>>>>>> 53fc66ea5e1c22b428fad1cd0ddbd7b6e2d3da17
     # Load data
     data_dir = project_root / "data" / "processed"
     X_full_path = data_dir / "X_full.parquet"
@@ -548,6 +790,7 @@ def main():
         logger.error("sample_info_full.parquet must contain a 't1' column.")
         return
 
+<<<<<<< HEAD
     # Step 2: Align datasets based on their original datetime index
     common_idx = X.index.intersection(y.index).intersection(sample_info.index)
     if len(common_idx) == 0:
@@ -573,6 +816,16 @@ def main():
 
     # Early stopping callback
     def early_stopping_callback(study, _):  # _ is unused but kept for Optuna callback signature
+=======
+    logger.info(f"Loaded datasets: X{X.shape}, y{y.shape}, sample_info{sample_info.shape}")
+    logger.info(f"Label distribution: {y.value_counts().sort_index().to_dict()}")
+
+    # Create enhanced CV splits
+    cv_splits, X_aligned, y_aligned = create_stratified_cv_splits(X, y, sample_info)
+
+    # Early stopping callback
+    def early_stopping_callback(study, _trial):  # _trial is unused but kept for Optuna callback signature
+>>>>>>> 53fc66ea5e1c22b428fad1cd0ddbd7b6e2d3da17
         if len(study.trials) >= CONFIG['early_stopping_patience']:
             recent_trials = study.trials[-CONFIG['early_stopping_patience']:]
             recent_values = [t.value for t in recent_trials if t.value is not None]
@@ -592,7 +845,11 @@ def main():
         direction="maximize",
         study_name="enhanced_multi_symbol_optimization"
     )
+<<<<<<< HEAD
 
+=======
+    
+>>>>>>> 53fc66ea5e1c22b428fad1cd0ddbd7b6e2d3da17
     study.optimize(
         lambda trial: objective(trial, X_aligned, y_aligned, cv_splits),
         n_trials=CONFIG['n_trials'],
@@ -608,17 +865,28 @@ def main():
 
     # Save comprehensive results
     save_comprehensive_results(study, MODEL_DIR)
+<<<<<<< HEAD
 
     # Final validation
     validation_results = final_model_validation(study, X_aligned, y_aligned, cv_splits)
 
+=======
+    
+    # Final validation
+    validation_results = final_model_validation(study, X_aligned, y_aligned, cv_splits)
+    
+>>>>>>> 53fc66ea5e1c22b428fad1cd0ddbd7b6e2d3da17
     # Save validation results
     with open(MODEL_DIR / "final_validation_results.json", "w") as f:
         json.dump(validation_results, f, indent=4, default=str)
 
     # Train final ensemble model
     final_model_path = train_final_ensemble_model(X_aligned, y_aligned, study.best_params)
+<<<<<<< HEAD
 
+=======
+    
+>>>>>>> 53fc66ea5e1c22b428fad1cd0ddbd7b6e2d3da17
     # Summary
     logger.success("=== Optimization Pipeline Completed Successfully ===")
     logger.success(f"Best {CONFIG['primary_metric']} score: {study.best_value:.4f}")
