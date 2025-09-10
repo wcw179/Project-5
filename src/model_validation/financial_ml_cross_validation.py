@@ -90,7 +90,12 @@ class PurgedStratifiedKFold(KFold):
             )
             train_times = ml_get_train_times(self.samples_info_sets, test_times)
             
+<<<<<<< HEAD
             train_indices = self.samples_info_sets.index.searchsorted(train_times.index)
+=======
+            train_indices = [self.samples_info_sets.index.get_loc(train_ix) 
+                           for train_ix in train_times.index]
+>>>>>>> 53fc66ea5e1c22b428fad1cd0ddbd7b6e2d3da17
             
             if len(np.intersect1d(train_indices, test_indices)) > 0:
                 raise Exception("Train and test intersect")
@@ -134,7 +139,12 @@ class PurgedStratifiedKFold(KFold):
             )
             train_times = ml_get_train_times(self.samples_info_sets, test_times)
             
+<<<<<<< HEAD
             train_indices = self.samples_info_sets.index.searchsorted(train_times.index)
+=======
+            train_indices = [self.samples_info_sets.index.get_loc(train_ix) 
+                           for train_ix in train_times.index]
+>>>>>>> 53fc66ea5e1c22b428fad1cd0ddbd7b6e2d3da17
             
             if len(np.intersect1d(train_indices, test_indices)) > 0:
                 raise Exception("Train and test intersect")
