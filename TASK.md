@@ -77,7 +77,7 @@
   - [ ] Implement buffer persistence for system restarts
 
 - [ ] **Multi-Currency Support:**
-  - [ ] Set up data streams for: EURUSDm, GBPUSDm, USDJPYm, XAUUSDm
+  - [ ] Set up data streams for: EURUSDm, GBPUSDm, USDJPYm, XAUUSDm, AUDUSDm
   - [ ] Implement synchronized data collection across pairs
   - [ ] Create currency-specific configuration management
   - [ ] Add cross-pair correlation monitoring

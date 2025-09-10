@@ -44,7 +44,7 @@ def objective(trial: optuna.trial.Trial, X: pd.DataFrame, y: pd.Series, cv_split
             'objective': 'multi:softprob',  # Use softprob for probability scores
             'num_class': 3,
             'eval_metric': 'mlogloss',
-            'n_estimators': trial.suggest_int('n_estimators', 50, 500),
+            'n_estimators': trial.suggest_int('n_estimators', 100, 1000),
             'max_depth': trial.suggest_int('max_depth', 3, 8),
             'learning_rate': trial.suggest_float('learning_rate', 0.01, 0.2),
             'subsample': trial.suggest_float('subsample', 0.7, 1.0),
@@ -207,6 +207,9 @@ def main():
 
     save_optimization_results(study, MODEL_DIR)
     validate_best_model(study, X, y, cv_splits)
+    best_model = xgb.XGBClassifier(**best_params)
+    best_model.fit(X, y.map({-1:0,0:1,1:2}))
+    joblib.dump(best_model, MODEL_DIR / "multi_symbol_final_model.pkl")
 
 if __name__ == "__main__":
     main()

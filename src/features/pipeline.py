@@ -5,6 +5,7 @@ import pandas as pd
 from src.features.fractal.dimension import add_fractal_features
 from src.features.microstructure.liquidity import add_microstructure_features
 from src.features.regime.volatility_regime import add_volatility_regime
+from src.features.regime.market_regime import add_market_regime_features
 from src.features.sentiment.indicators import add_sentiment_features
 from src.features.temporal.sessions import add_session_features
 from src.features.trend.alignment import add_trend_features
@@ -92,6 +93,9 @@ def create_all_features(
     df_featured = add_volatility_regime(df_featured)
     logger.debug(f"({symbol}) ...Regime features OK.")
 
+    logger.debug(f"({symbol}) Adding market regime features...")
+    df_featured = add_market_regime_features(df_featured)
+    logger.debug(f"({symbol}) ...Market regime features OK.")
     logger.debug(f"({symbol}) Adding mlfinpy filter features...")
     df_featured = add_mlfinpy_filter_features(df_featured)
     logger.debug(f"({symbol}) ...mlfinpy filter features OK.")

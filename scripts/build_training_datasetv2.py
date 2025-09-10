@@ -151,14 +151,20 @@ def main():
 
     # --- Saving Final Dataset ---
     data_dir = project_root / "data" / "processed"
-    data_dir.mkdir(exist_ok=True)
+    data_dir.mkdir(parents=True, exist_ok=True)
 
     X_full_path = data_dir / "X_full.parquet"
     y_full_path = data_dir / "y_full.parquet"
     sample_info_path = data_dir / "sample_info_full.parquet"
 
+    # Save features
     X_full.to_parquet(X_full_path)
-    y_full.to_parquet(y_full_path)
+
+    # Ensure Series is saved as single-column DataFrame for maximum compatibility
+    y_full_df = y_full.to_frame(name="label") if isinstance(y_full, pd.Series) else pd.DataFrame(y_full)
+    y_full_df.to_parquet(y_full_path)
+
+    # Save sample info
     sample_info_full.to_parquet(sample_info_path)
 
     logger.success("Full dataset saved successfully in Parquet format:")

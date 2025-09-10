@@ -1,0 +1,46 @@
+{
+    "best_value": 0.6391562072763819,
+    "best_params": {
+        "n_estimators": 213,
+        "max_depth": 4,
+        "learning_rate": 0.016799211483196037,
+        "subsample": 0.9226084855278912,
+        "colsample_bytree": 0.7724854295893939,
+        "colsample_bylevel": 0.6709896653875856,
+        "colsample_bynode": 0.7300915098140955,
+        "gamma": 0.5008241253005776,
+        "reg_alpha": 7.710003882518091e-08,
+        "reg_lambda": 1.3942026211947297e-06,
+        "min_child_weight": 4
+    },
+    "best_trial_number": 21,
+    "best_trial_user_attrs": {
+        "mean_f1_weighted": 0.3930714827659211,
+        "std_f1_weighted": 0.14048982591646952,
+        "mean_accuracy": 0.42365591397849467,
+        "std_accuracy": 0.11729194469053156,
+        "mean_sharpe": 2.2726080835019333,
+        "std_sharpe": 1.329932366935569,
+        "mean_combined": 0.6391562072763819,
+        "std_combined": 0.16986557995858315
+    },
+    "optimization_config": {
+        "n_trials": 100,
+        "n_splits": 5,
+        "early_stopping_patience": 20,
+        "improvement_threshold": 0.001,
+        "random_state": 42,
+        "n_jobs": 1,
+        "xgb_early_stopping": 50,
+        "pct_embargo": 0.01,
+        "min_samples_per_class": 10,
+        "evaluation_metrics": [
+            "f1_weighted",
+            "accuracy",
+            "sharpe",
+            "combined"
+        ],
+        "primary_metric": "combined"
+    },
+    "n_completed_trials": 100
+}
