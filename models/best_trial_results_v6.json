@@ -1,0 +1,46 @@
+{
+    "best_value": 0.47519556002342794,
+    "best_params": {
+        "n_estimators": 947,
+        "max_depth": 4,
+        "learning_rate": 0.09192430691862553,
+        "subsample": 0.9935554666916834,
+        "colsample_bytree": 0.7027563580707649,
+        "gamma": 0.8667297266059981,
+        "reg_alpha": 0.0011208991313816116,
+        "reg_lambda": 1.2005592241245364e-06,
+        "min_child_weight": 3
+    },
+    "best_trial_number": 60,
+    "optimization_config": {
+        "n_trials": 100,
+        "n_splits": 5,
+        "random_state": 42,
+        "n_jobs_optuna": 1,
+        "n_jobs_xgb": -1,
+        "xgb_early_stopping": 50,
+        "pct_embargo": 0.01,
+        "min_samples_per_class": 10,
+        "use_true_returns": true,
+        "annualization_factor": 72576,
+        "evaluation_metrics": [
+            "f1_weighted",
+            "accuracy",
+            "sharpe",
+            "sortino",
+            "hit_ratio",
+            "combined"
+        ],
+        "primary_metric": "combined",
+        "metric_weights": {
+            "accuracy": 0.2,
+            "sharpe": 0.8
+        },
+        "sharpe_normalization": {
+            "method": "tanh",
+            "scaling_factor": 2.0,
+            "offset": 2,
+            "scale": 5
+        }
+    }
+}

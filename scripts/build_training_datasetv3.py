@@ -24,7 +24,7 @@ from mlfinpy.util import get_daily_vol
 # --- Constants ---
 DB_PATH = project_root / "data" / "m5_trading.db"
 
-START_DATE = "2023-01-01"
+START_DATE = "2024-09-05"
 END_DATE = "2025-09-05"
 
 def build_dataset(symbol: str) -> tuple[pd.DataFrame, pd.Series, pd.DataFrame]:
@@ -54,7 +54,7 @@ def build_dataset(symbol: str) -> tuple[pd.DataFrame, pd.Series, pd.DataFrame]:
     # 3. Create Labels
     logger.info(f"Generating labels for {symbol}...")
     LOOK_FORWARD_WINDOW = 288
-    EVENT_SAMPLING_RATE = 12
+    EVENT_SAMPLING_RATE = 1
     t_events_sampled = close.index[::EVENT_SAMPLING_RATE]
     ts_labels = robust_trend_scanning_labels(close, t_events=t_events_sampled, look_forward_window=LOOK_FORWARD_WINDOW)
     ts_labels.dropna(inplace=True)
@@ -160,9 +160,9 @@ def main():
     data_dir = project_root / "data" / "processed"
     data_dir.mkdir(parents=True, exist_ok=True)
 
-    X_full_path = data_dir / "X_full_v3.parquet"
-    y_full_path = data_dir / "y_full_v3.parquet"
-    sample_info_path = data_dir / "sample_info_full_v3.parquet"
+    X_full_path = data_dir / "X_full_v4.parquet"
+    y_full_path = data_dir / "y_full_v4.parquet"
+    sample_info_path = data_dir / "sample_info_full_v4.parquet"
 
     # Save features
     X_full.to_parquet(X_full_path)

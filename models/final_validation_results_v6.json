@@ -1,0 +1,132 @@
+{
+    "overall_metrics": {
+        "f1_weighted": 0.37325582263309115,
+        "accuracy": 0.37597911227154046,
+        "sharpe": -30.843786652311294,
+        "sortino": -29.087815226979576,
+        "hit_ratio": 0.4716929025131179,
+        "combined": 0.0751958224543403
+    },
+    "cv_statistics": {
+        "f1_weighted": {
+            "mean": 0.36305074584138175,
+            "std": 0.01557516193080194,
+            "scores": [
+                0.3786259077721837,
+                0.3474755839105798
+            ]
+        },
+        "accuracy": {
+            "mean": 0.3759778001713485,
+            "std": 0.008543084349535962,
+            "scores": [
+                0.3845208845208845,
+                0.3674347158218126
+            ]
+        },
+        "sharpe": {
+            "mean": -18.46030187843297,
+            "std": 42.791620176013254,
+            "scores": [
+                24.33131829758028,
+                -61.25192205444622
+            ]
+        },
+        "sortino": {
+            "mean": -18.860707741996997,
+            "std": 46.59869783585924,
+            "scores": [
+                27.737990093862248,
+                -65.45940557785624
+            ]
+        },
+        "hit_ratio": {
+            "mean": 0.46993246543891354,
+            "std": 0.06311428362073176,
+            "scores": [
+                0.5330467490596453,
+                0.4068181818181818
+            ]
+        },
+        "combined": {
+            "mean": 0.47519556002342794,
+            "std": 0.4017086168590654,
+            "scores": [
+                0.8769041768824933,
+                0.07348694316436252
+            ]
+        }
+    },
+    "fold_results": [
+        {
+            "f1_weighted": 0.3786259077721837,
+            "accuracy": 0.3845208845208845,
+            "sharpe": 24.33131829758028,
+            "sortino": 27.737990093862248,
+            "hit_ratio": 0.5330467490596453,
+            "combined": 0.8769041768824933
+        },
+        {
+            "f1_weighted": 0.3474755839105798,
+            "accuracy": 0.3674347158218126,
+            "sharpe": -61.25192205444622,
+            "sortino": -65.45940557785624,
+            "hit_ratio": 0.4068181818181818,
+            "combined": 0.07348694316436252
+        }
+    ],
+    "classification_report": {
+        "-1": {
+            "precision": 0.34282955094157413,
+            "recall": 0.33553875236294894,
+            "f1-score": 0.3391449725340339,
+            "support": 2116.0
+        },
+        "0": {
+            "precision": 0.4392102528576377,
+            "recall": 0.475797373358349,
+            "f1-score": 0.45677233429394815,
+            "support": 2665.0
+        },
+        "1": {
+            "precision": 0.3026400515132003,
+            "recall": 0.27167630057803466,
+            "f1-score": 0.28632348461772766,
+            "support": 1730.0
+        },
+        "accuracy": 0.37597911227154046,
+        "macro avg": {
+            "precision": 0.36155995177080397,
+            "recall": 0.36100414209977755,
+            "f1-score": 0.36074693048190326,
+            "support": 6511.0
+        },
+        "weighted avg": {
+            "precision": 0.371600359818125,
+            "recall": 0.37597911227154046,
+            "f1-score": 0.37325582263309115,
+            "support": 6511.0
+        }
+    },
+    "saved_models": [
+        "C:\\Users\\Admin\\Documents\\GitHub\\Project-5\\models\\final_model_fold_0.joblib",
+        "C:\\Users\\Admin\\Documents\\GitHub\\Project-5\\models\\final_model_fold_1.joblib"
+    ],
+    "best_parameters": {
+        "n_estimators": 947,
+        "max_depth": 4,
+        "learning_rate": 0.09192430691862553,
+        "subsample": 0.9935554666916834,
+        "colsample_bytree": 0.7027563580707649,
+        "gamma": 0.8667297266059981,
+        "reg_alpha": 0.0011208991313816116,
+        "reg_lambda": 1.2005592241245364e-06,
+        "min_child_weight": 3,
+        "objective": "multi:softprob",
+        "num_class": 3,
+        "eval_metric": "mlogloss",
+        "tree_method": "hist",
+        "random_state": 42,
+        "n_jobs": -1
+    }
+}
