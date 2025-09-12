@@ -24,7 +24,7 @@ from mlfinpy.util import get_daily_vol
 # --- Constants ---
 DB_PATH = project_root / "data" / "m5_trading.db"
 
-START_DATE = "2024-09-05"
+START_DATE = "2024-01-01"   
 END_DATE = "2025-09-05"
 
 def build_dataset(symbol: str) -> tuple[pd.DataFrame, pd.Series, pd.DataFrame]:

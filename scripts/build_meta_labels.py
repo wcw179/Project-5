@@ -17,15 +17,17 @@ OUTPUT_PATH = DATA_DIR / "meta_labeled_dataset.parquet"
 def apply_meta_labeling(df: pd.DataFrame) -> pd.DataFrame:
     """Applies the meta-labeling logic to the DataFrame."""
     logger.info("Applying meta-labeling logic...")
-    
+
     # Conditions for meta_label
     # 1. If primary model predicts 0, meta_label is 0
     # 2. If primary model predicts 1 and the bet was correct (label > 0), meta_label is 1
     # 3. If primary model predicts 1 and the bet was incorrect (label <= 0), meta_label is 0
-    df['meta_label'] = 0 # Default to 0
+    df['meta_label'] = 0  # Default to 0
+
+    # Use the correct column name 'label'
     correct_bet_mask = (df['prediction'] == 1) & (df['label'] > 0)
     df.loc[correct_bet_mask, 'meta_label'] = 1
-    
+
     return df
 
 def main():
